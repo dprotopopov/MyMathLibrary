@@ -1,0 +1,14 @@
+D:\Projects\MiniMax\MyMath\bin\Debug\MyMath.dll
+D:\Projects\MiniMax\MyMath\bin\Debug\MyMath.pdb
+D:\Projects\MiniMax\MyMath\bin\Debug\MyLibrary.dll
+D:\Projects\MiniMax\MyMath\bin\Debug\MyLibrary.pdb
+D:\Projects\MiniMax\MyMath\obj\Debug\MyMath.csprojResolveAssemblyReference.cache
+D:\Projects\MiniMax\MyMath\obj\Debug\MyMath.dll
+D:\Projects\MiniMax\MyMath\obj\Debug\MyMath.pdb
+D:\Projects\MyMathLibrary\MyMath\obj\Debug\MyMath.csprojResolveAssemblyReference.cache
+D:\Projects\MyMathLibrary\MyMath\obj\Debug\MyMath.dll
+D:\Projects\MyMathLibrary\MyMath\obj\Debug\MyMath.pdb
+D:\Projects\MyMathLibrary\MyMath\bin\Debug\MyMath.dll
+D:\Projects\MyMathLibrary\MyMath\bin\Debug\MyMath.pdb
+D:\Projects\MyMathLibrary\MyMath\bin\Debug\MyLibrary.dll
+D:\Projects\MyMathLibrary\MyMath\bin\Debug\MyLibrary.pdb
