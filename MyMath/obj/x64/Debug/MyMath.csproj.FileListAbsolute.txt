@@ -1,0 +1,7 @@
+D:\Projects\MyMathLibrary\MyMath\bin\x64\Debug\MyMath.dll
+D:\Projects\MyMathLibrary\MyMath\bin\x64\Debug\MyMath.pdb
+D:\Projects\MyMathLibrary\MyMath\bin\x64\Debug\MyLibrary.dll
+D:\Projects\MyMathLibrary\MyMath\bin\x64\Debug\MyLibrary.pdb
+D:\Projects\MyMathLibrary\MyMath\obj\x64\Debug\MyMath.csprojResolveAssemblyReference.cache
+D:\Projects\MyMathLibrary\MyMath\obj\x64\Debug\MyMath.dll
+D:\Projects\MyMathLibrary\MyMath\obj\x64\Debug\MyMath.pdb
