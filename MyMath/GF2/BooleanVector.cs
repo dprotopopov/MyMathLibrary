@@ -15,6 +15,11 @@ namespace MyMath.GF2
         {
         }
 
+        public BooleanVector(bool value)
+            : base(value)
+        {
+        }
+
         public override string ToString()
         {
             return string.Join("", this.Select(b => b ? "1" : "0"));
@@ -40,19 +45,24 @@ namespace MyMath.GF2
                 };
         }
 
-        public static int Module(BooleanVector vector1, BooleanVector vector2)
+        public static int Module(BooleanVector booleanVector, BooleanVector vector2)
         {
-            return Module(And(vector1, vector2));
+            return Module(And(booleanVector, vector2));
         }
 
-        public static int Module(BooleanVector vector1)
+        public static int Module(BooleanVector booleanVector)
         {
-            return vector1.Count(b => b);
+            return booleanVector.Count(b => b);
         }
 
-        public bool IsZero()
+        public static bool IsZero(BooleanVector booleanVector)
         {
-            return this.All(b => !b);
+            return !booleanVector.Any(b => b);
+        }
+
+        public static bool NotZero(BooleanVector booleanVector)
+        {
+            return booleanVector.Any(b => b);
         }
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using MyLibrary.Collections;
 
@@ -26,13 +27,13 @@ namespace MyMath
         public Matrix(int rows, int cols)
         {
             for (int i = 0; i < rows; i++)
-                Add(new Vector<T>(Enumerable.Repeat((T) (dynamic) 0, cols)));
+                Add(new Vector<T>(Enumerable.Repeat(default(T), cols)));
         }
 
         public Matrix(IEnumerable<IEnumerable<T>> array)
         {
-            foreach (var r  in array)
-                Add(new Vector<T>(r));
+            foreach (var vector in array)
+                Add(new Vector<T>(vector));
         }
 
         protected Matrix()
@@ -60,6 +61,7 @@ namespace MyMath
         /// </summary>
         public void GaussJordan()
         {
+            Debug.WriteLine("Begin {0}::{1}", GetType().Name, MethodBase.GetCurrentMethod().Name);
             int row = Rows;
             int col = Columns;
 
@@ -74,10 +76,10 @@ namespace MyMath
             Parallel.ForEach(
                 from i in Enumerable.Range(0, Rows)
                 from j in Enumerable.Range(0, Columns)
-                select new[] {i, j}, pair =>
+                select new {row = i, col = j}, pair =>
                 {
-                    int i = pair[0];
-                    int j = pair[1];
+                    int i = pair.row;
+                    int j = pair.col;
                     T x;
                     lock (read) x = this[i][j];
                     lock (write) prev[i, j] = x;
@@ -96,103 +98,98 @@ namespace MyMath
             Parallel.ForEach(
                 from i in Enumerable.Range(0, Rows)
                 from j in Enumerable.Range(0, Columns)
-                select new[] {i, j}, pair =>
+                select new {row = i, col = j}, pair =>
                 {
-                    int i = pair[0];
-                    int j = pair[1];
+                    int i = pair.row;
+                    int j = pair.col;
                     T x;
                     lock (read) x = prev[i, j];
                     lock (write) this[i][j] = x;
                 });
+            Debug.WriteLine("End {0}::{1}", GetType().Name, MethodBase.GetCurrentMethod().Name);
         }
 
         private static bool FindNotZero(T[,] items, int i, ref int row, ref int col)
         {
+            Debug.WriteLine("Begin {0}::{1}", typeof (Matrix<T>).Name, MethodBase.GetCurrentMethod().Name);
             Debug.Assert(row <= items.GetLength(0));
             Debug.Assert(col <= items.GetLength(1));
             int total = (row - i)*(col - i);
             int n = col - i;
-            for (int j = 0; j < total; j++)
+            int j;
+            for (j = 0; j < total; j++)
             {
                 row = i + (j/n);
                 col = i + (j%n);
                 Debug.Assert(row <= items.GetLength(0));
                 Debug.Assert(col <= items.GetLength(1));
-                if (!IsZero(items[row, col]))
-                    return true;
+                T x = items[row, col];
+                if (Math.Abs(Convert.ToDouble(x)) > 0.0) break;
             }
-            return false;
+            Debug.WriteLine("End {0}::{1}", typeof (Matrix<T>).Name, MethodBase.GetCurrentMethod().Name);
+            return j < total;
         }
 
         public static void GaussJordanStep(T[,] prev, T[,] next, int row, int col)
         {
+            Debug.WriteLine("Begin {0}::{1}", typeof (Matrix<T>).Name, MethodBase.GetCurrentMethod().Name);
             Debug.Assert(prev.GetLength(0) == next.GetLength(0));
             Debug.Assert(prev.GetLength(1) == next.GetLength(1));
 
-            T d = prev[row, col];
+            int rows = prev.GetLength(0);
+            int cols = prev.GetLength(1);
 
             var read = new object();
             var write = new object();
 
+            T x;
+            lock (read) x = prev[row, col];
+            double d = Convert.ToDouble(x);
+            Debug.Assert(Math.Abs(d) > 0.0);
+
             Parallel.ForEach(
-                from i in Enumerable.Range(0, prev.GetLength(0))
-                from j in Enumerable.Range(0, prev.GetLength(1))
-                select new[] {i, j}, pair =>
+                from i in Enumerable.Range(0, rows)
+                from j in Enumerable.Range(0, cols)
+                select new {row = i, col = j}, pair =>
                 {
-                    int i = pair[0];
-                    int j = pair[1];
+                    int i = pair.row;
+                    int j = pair.col;
                     if (i == row && j == col)
-                        lock (write) next[i, j] = (T) (dynamic) 1;
+                    {
+                        var one = (T) Convert.ChangeType(1, typeof (T));
+                        lock (write) next[i, j] = one;
+                    }
                     else if (j == col)
-                        lock (write) next[i, j] = (T) (dynamic) 0;
+                        lock (write) next[i, j] = default(T);
                     else if (i == row)
                     {
                         T a;
                         lock (read) a = prev[i, j];
-                        T y = Div(a, d);
+                        var y = (T) Convert.ChangeType(Convert.ToDouble(a)/d, typeof (T));
                         lock (write) next[i, j] = y;
                     }
                     else
                     {
                         T a, b, c;
-                        lock (read)
-                        {
-                            a = prev[i, j];
-                            b = prev[i, col];
-                            c = prev[row, j];
-                        }
-                        T y = SubMulDiv(a, b, c, d);
+                        lock (read) a = prev[i, j];
+                        lock (read) b = prev[i, col];
+                        lock (read) c = prev[row, j];
+                        var y =
+                            (T) Convert.ChangeType(Convert.ToDouble(a) - (Convert.ToDouble(b)*Convert.ToDouble(c)/d),
+                                typeof (T));
                         lock (write) next[i, j] = y;
                     }
                 });
-        }
-
-        private static T Div(T a, T b)
-        {
-            return (dynamic) a/(dynamic) b;
-        }
-
-        private static T SubMulDiv(T a, T b, T c, T d)
-        {
-            return (dynamic) a - ((dynamic) b*(dynamic) c/(dynamic) d);
-        }
-
-        public static bool IsZero(T a)
-        {
-            return unchecked((dynamic) a == (T) (dynamic) 0);
+            Debug.WriteLine("End {0}::{1}", typeof (Matrix<T>).Name, MethodBase.GetCurrentMethod().Name);
         }
 
         public static int CompareByIndexOfFirstNotZero(Vector<T> x, Vector<T> y)
         {
-            int index1 = x.IndexOf(x.First(NotZero));
-            int index2 = y.IndexOf(y.First(NotZero));
+            int index1 = x.IndexOf(x.First(Vector<T>.NotZero));
+            int index2 = y.IndexOf(y.First(Vector<T>.NotZero));
             return index1 - index2;
         }
 
-        private static bool NotZero(T arg)
-        {
-            return (dynamic) arg != (T) (dynamic) 0;
-        }
 
         /// <summary>
         ///     Определитель матрицы
@@ -205,10 +202,12 @@ namespace MyMath
             // Приведение матрицы к каноническому виду
             GaussJordan();
             // Проверка на нулевые строки
-            if (this.Any(IsZero)) return (T) (dynamic) 0;
-            int parity = this.Sum(row => row.IndexOf(row.First(NotZero)));
-            T s = this.Select(row => row.First(NotZero)).Aggregate((x, y) => (T) ((dynamic) x*(dynamic) y));
-            return ((parity & 1) == 0) ? s : (T) (- (dynamic) s);
+            if (this.Any(IsZero)) return default(T);
+            int parity = this.Sum(row => row.IndexOf(row.First(Vector<T>.NotZero)));
+            T s =
+                this.Select(row => row.First(Vector<T>.NotZero))
+                    .Aggregate((x, y) => ((dynamic) x*(dynamic) y));
+            return ((parity & 1) == 0) ? s : (- (dynamic) s);
         }
     }
 }

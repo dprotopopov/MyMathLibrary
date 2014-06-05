@@ -30,10 +30,10 @@ namespace MyMath
             var result = new T[count];
             Parallel.ForEach(Enumerable.Range(0, count), i =>
             {
-                T x, y;
-                lock (read) x = (i < a.Count) ? a.ElementAt(i) : (T) (dynamic) 0;
-                lock (read) y = (i < b.Count) ? b.ElementAt(i) : (T) (dynamic) 0;
-                T z = (dynamic) x + (dynamic) y;
+                dynamic x, y;
+                lock (read) x = (i < a.Count) ? a.ElementAt(i) : default(T);
+                lock (read) y = (i < b.Count) ? b.ElementAt(i) : default(T);
+                dynamic z = x + y;
                 lock (write) result[i] = z;
             });
             return new Vector<T>(result);
@@ -47,10 +47,10 @@ namespace MyMath
             var result = new T[count];
             Parallel.ForEach(Enumerable.Range(0, count), i =>
             {
-                T x, y;
-                lock (read) x = (i < a.Count) ? a.ElementAt(i) : (T) (dynamic) 0;
-                lock (read) y = (i < b.Count) ? b.ElementAt(i) : (T) (dynamic) 0;
-                T z = (dynamic) x - (dynamic) y;
+                dynamic x, y;
+                lock (read) x = (i < a.Count) ? a.ElementAt(i) : default(T);
+                lock (read) y = (i < b.Count) ? b.ElementAt(i) : default(T);
+                dynamic z = x - y;
                 lock (write) result[i] = z;
             });
             return new Vector<T>(result);
@@ -61,14 +61,20 @@ namespace MyMath
             return new Vector<T>(a.Select(t => (T) (-(dynamic) t)));
         }
 
-        public static bool IsZero(T a)
+        public static bool IsZero(IEnumerable<T> a)
         {
-            return unchecked((dynamic) a == (T) (dynamic) 0);
+            return (!a.Any()) || a.All(IsZero);
         }
 
-        public static bool IsZero(Vector<T> a)
+        public static bool IsZero(T arg)
         {
-            return a.Count == 0 || a.All(IsZero);
+            double x = Math.Abs(Convert.ToDouble(arg));
+            return x <= 0.0*x;
+        }
+
+        public static bool NotZero(T arg)
+        {
+            return Math.Abs(Convert.ToDouble(arg)) > 0.0;
         }
 
         public static T Scalar(Vector<T> a, Vector<T> b)
@@ -76,16 +82,16 @@ namespace MyMath
             int count = Math.Min(a.Count, b.Count);
             var read = new object();
             var write = new object();
-            var buffer = new T[count];
+            var buffer = new double[count];
             Parallel.ForEach(Enumerable.Range(0, count), i =>
             {
-                T x, y;
-                lock (read) x = (i < a.Count) ? a.ElementAt(i) : (T) (dynamic) 0;
-                lock (read) y = (i < b.Count) ? b.ElementAt(i) : (T) (dynamic) 0;
-                T z = (dynamic) x*(dynamic) y;
+                dynamic x, y;
+                lock (read) x = (i < a.Count) ? a.ElementAt(i) : default(T);
+                lock (read) y = (i < b.Count) ? b.ElementAt(i) : default(T);
+                double z = Convert.ToDouble(x)*Convert.ToDouble(y);
                 lock (write) buffer[i] = z;
             });
-            return buffer.Aggregate((T) (dynamic) 0, (current, y) => (dynamic) current + (dynamic) y);
+            return (T) (dynamic) buffer.Aggregate(0.0, (current, y) => current + y);
         }
     }
 }

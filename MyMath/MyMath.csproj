@@ -17,8 +17,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>
-    </DefineConstants>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -76,7 +75,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BigInt.cs" />
-    <Compile Include="EquationOperand.cs" />
     <Compile Include="GF2\BooleanMatrix.cs" />
     <Compile Include="GF2\BooleanVector.cs" />
     <Compile Include="Matrix.cs" />

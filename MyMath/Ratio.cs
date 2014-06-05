@@ -31,7 +31,7 @@ namespace MyMath
         {
             Divisor = number;
             Integer = number;
-            Fraction = (T) (dynamic) 0;
+            Fraction = default(T);
             Divider = (T) (dynamic) 1;
         }
 
@@ -142,7 +142,7 @@ namespace MyMath
                 stack.Push(q);
             }
             c = (T) (dynamic) 1;
-            d = (T) (dynamic) 0;
+            d = default(T);
             while (stack.Any())
             {
                 T q = stack.Pop();
@@ -171,7 +171,7 @@ namespace MyMath
 
         public static bool IsZero(T a)
         {
-            return (dynamic) a == (T) (dynamic) 0;
+            return (dynamic) a == default(T);
         }
 
         private static bool IsOne(T a)

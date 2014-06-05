@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using MyLibrary.Collections;
@@ -20,26 +19,35 @@ namespace MyMath
         private static readonly int HalfSize = Marshal.SizeOf(typeof (T)) << 2;
         private static readonly int Size = Marshal.SizeOf(typeof (T)) << 3;
 
-        private static readonly T HalfMask =
-            (T) (((dynamic) ((T) (dynamic) 1) << (Marshal.SizeOf(typeof (T)) << 2)) - (T) (dynamic) 1);
+        private static readonly dynamic Uno = (T) Convert.ChangeType(1, typeof (T));
 
-        private static readonly T SignBitMask =
-            (T) ((dynamic) ((T) (dynamic) 1) << ((Marshal.SizeOf(typeof (T)) << 3) - 1));
+        private static readonly dynamic HalfMask = (T) ((Uno << (Marshal.SizeOf(typeof (T)) << 2)) - Uno);
+        private static readonly dynamic SignMask = (T) (Uno << ((Marshal.SizeOf(typeof (T)) << 3) - 1));
 
-        private static readonly BigInt<T> Ten = new BigInt<T>((T) (dynamic) 10);
+        private static readonly BigInt<T> Zero = new BigInt<T>();
+        private static readonly BigInt<T> One = new BigInt<T>((T) Convert.ChangeType(1, typeof (T)));
+        private static readonly BigInt<T> Two = new BigInt<T>((T) Convert.ChangeType(2, typeof (T)));
+        private static readonly BigInt<T> Three = new BigInt<T>((T) Convert.ChangeType(3, typeof (T)));
+        private static readonly BigInt<T> Four = new BigInt<T>((T) Convert.ChangeType(4, typeof (T)));
+        private static readonly BigInt<T> Five = new BigInt<T>((T) Convert.ChangeType(5, typeof (T)));
+        private static readonly BigInt<T> Six = new BigInt<T>((T) Convert.ChangeType(6, typeof (T)));
+        private static readonly BigInt<T> Seven = new BigInt<T>((T) Convert.ChangeType(7, typeof (T)));
+        private static readonly BigInt<T> Eight = new BigInt<T>((T) Convert.ChangeType(8, typeof (T)));
+        private static readonly BigInt<T> Nine = new BigInt<T>((T) Convert.ChangeType(9, typeof (T)));
+        private static readonly BigInt<T> Ten = new BigInt<T>((T) Convert.ChangeType(10, typeof (T)));
 
         private static readonly Dictionary<char, BigInt<T>> Digit = new Dictionary<char, BigInt<T>>
         {
-            {'0', new BigInt<T>()},
-            {'1', new BigInt<T>((T) (dynamic) 1)},
-            {'2', new BigInt<T>((T) (dynamic) 2)},
-            {'3', new BigInt<T>((T) (dynamic) 3)},
-            {'4', new BigInt<T>((T) (dynamic) 4)},
-            {'5', new BigInt<T>((T) (dynamic) 5)},
-            {'6', new BigInt<T>((T) (dynamic) 6)},
-            {'7', new BigInt<T>((T) (dynamic) 7)},
-            {'8', new BigInt<T>((T) (dynamic) 8)},
-            {'9', new BigInt<T>((T) (dynamic) 9)},
+            {'0', Zero},
+            {'1', One},
+            {'2', Two},
+            {'3', Three},
+            {'4', Four},
+            {'5', Five},
+            {'6', Six},
+            {'7', Seven},
+            {'8', Eight},
+            {'9', Nine},
         };
 
         public BigInt(string s)
@@ -65,12 +73,12 @@ namespace MyMath
             int count = stackListQueue.Count();
             for (;
                 count > 1 && IsZero(stackListQueue.ElementAt(count - 1)) &&
-                IsZero((dynamic) stackListQueue.ElementAt(count - 2) & (dynamic) SignBitMask);
+                IsZero(stackListQueue.ElementAt(count - 2) & SignMask);
                 count--)
                 stackListQueue.Pop();
             for (;
                 count > 1 && IsMinusOne(stackListQueue.ElementAt(count - 1)) &&
-                !IsZero((dynamic) stackListQueue.ElementAt(count - 2) & (dynamic) SignBitMask);
+                !IsZero(stackListQueue.ElementAt(count - 2) & SignMask);
                 count--)
                 stackListQueue.Pop();
             if (count == 1 && IsZero(stackListQueue.First())) return;
@@ -84,15 +92,14 @@ namespace MyMath
         ///     0 - положительное
         ///     -1 - отрицательное
         /// </summary>
-        public T Sign
+        public dynamic Sign
         {
             get
             {
-                return
-                    (T) unchecked(
-                        (IsZero(this) || IsZero((dynamic) this.Last() & (dynamic) SignBitMask))
-                            ? 0
-                            : (dynamic) (-1));
+                dynamic s = default(T);
+                return unchecked((IsZero(this) || IsZero(this.Last() & SignMask))
+                    ? s
+                    : unchecked(s - 1));
             }
         }
 
@@ -103,8 +110,7 @@ namespace MyMath
             if (IsNegative(this)) return string.Format("-{0}", -this);
             var q = new BigInt<T>(this);
             var list = new StackListQueue<string>();
-            while (!IsZero(q))
-                list.Add(DivRem(ref q, Ten).ToString());
+            while (!IsZero(q)) list.Add(DivRem(ref q, Ten).ToString());
             return string.Join(string.Empty, list.GetReverse());
         }
 
@@ -127,10 +133,6 @@ namespace MyMath
 
         public static BigInt<T> operator <<(BigInt<T> a, int n)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("n={0},", n);
             if (IsZero(a)) return new BigInt<T>();
             int count = a.Count;
             int n0 = n/Size;
@@ -144,39 +146,32 @@ namespace MyMath
             var result = new T[count + n0 + ((n1 == 0) ? 0 : 1)];
             if (n1 != 0)
             {
-                result[n0] = (T) unchecked((dynamic) a.First() << n1);
-                var mask = (T) (((dynamic) ((T) (dynamic) 1) << n1) - (T) (dynamic) 1);
+                result[n0] = unchecked((dynamic) a.First() << n1);
+                dynamic mask = (T) ((Uno << n1) - Uno);
                 Parallel.ForEach(Enumerable.Range(1, count - 1), i =>
                 {
-                    T x, y;
+                    dynamic x, y;
                     lock (read) x = a.ElementAt(i - 1);
                     lock (read) y = a.ElementAt(i);
-                    var z = (T) unchecked((((dynamic) x >> n2) & (dynamic) mask) + ((dynamic) y << n1));
+                    dynamic z = unchecked(((x >> n2) & mask) + (y << n1));
                     lock (write) result[n0 + i] = z;
                 });
                 result[n0 + a.Count] =
-                    (T) unchecked((((dynamic) a.Last() >> n2) & (dynamic) mask) + (dynamic) a.Sign << n1);
+                    unchecked((((dynamic) a.Last() >> n2) & mask) + a.Sign << n1);
             }
             else
                 Parallel.ForEach(Enumerable.Range(0, count), i =>
                 {
-                    T x;
+                    dynamic x;
                     lock (read) x = a.ElementAt(i);
                     lock (write) result[n0 + i] = x;
                 });
             var r = new BigInt<T>(result);
-            Debug.WriteLine("Count={0},Sign={1},{2}", r.Count, r.Sign,
-                string.Join(string.Empty, r.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return r;
         }
 
         public static BigInt<T> operator >>(BigInt<T> a, int n)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("n={0},", n);
             if (IsZero(a)) return new BigInt<T>();
             int count = a.Count;
             int n0 = n/Size;
@@ -191,13 +186,13 @@ namespace MyMath
             var result = new T[Math.Max(1, count - n0)];
             if (n1 != 0)
             {
-                var mask = (T) (((dynamic) ((T) (dynamic) 1) << n2) - (T) (dynamic) 1);
+                dynamic mask = (T) (((dynamic) ((T) (dynamic) 1) << n2) - (T) (dynamic) 1);
                 Parallel.ForEach(Enumerable.Range(0, count - n0), i =>
                 {
-                    T x, y;
+                    dynamic x, y;
                     lock (read) x = a.ElementAt(n0 + i);
                     lock (read) y = (n0 + i + 1 < count) ? a.ElementAt(n0 + i + 1) : a.Sign;
-                    var z = (T) unchecked((((dynamic) x >> n1) & (dynamic) mask) + ((dynamic) y << n2));
+                    dynamic z = unchecked(((x >> n1) & mask) + (y << n2));
                     lock (write) result[i] = z;
                 });
             }
@@ -209,17 +204,11 @@ namespace MyMath
                     lock (write) result[i] = x;
                 });
             var r = new BigInt<T>(result);
-            Debug.WriteLine("Count={0},Sign={1},{2}", r.Count, r.Sign,
-                string.Join(string.Empty, r.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return r;
         }
 
         public static BigInt<T> Square(BigInt<T> a)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
             int count = a.Count;
             if (count == 0) return new BigInt<T>();
             if (count == 1) return a*a;
@@ -228,19 +217,12 @@ namespace MyMath
             var a1 = new BigInt<T>(a.GetRange(0, count1));
             var a2 = new BigInt<T>(a.GetRange(count1, count2));
             BigInt<T> r = Square(a1) + (a1*a2 << (count1*Size + 1)) + (Square(a2) << (count1*Size << 1));
-            Debug.WriteLine("Count={0},Sign={1},{2}", r.Count, r.Sign,
-                string.Join(string.Empty, r.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return r;
         }
 
         public static BigInt<T> Pow(BigInt<T> a, int p)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("p={0},", p);
-            if (p == 0) return new BigInt<T>((T) (dynamic) 1);
+            if (p == 0) return new BigInt<T>(Uno);
             if (IsZero(a)) return new BigInt<T>();
             int x = p;
             int k1;
@@ -252,22 +234,14 @@ namespace MyMath
             for (int i = k1 + 1; i < k1 + k2; i++)
             {
                 square = Square(square);
-                if (((p >> i) & 1) == 1) r = (dynamic) r*(dynamic) square;
+                if (((p >> i) & 1) == 1) r = r*square;
             }
             while (k1-- > 0) r = Square(r);
-            Debug.WriteLine("Count={0},Sign={1},{2}", r.Count, r.Sign,
-                string.Join(string.Empty, r.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return r;
         }
 
         public static BigInt<T> operator *(BigInt<T> a, BigInt<T> b)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("Count={0},Sign={1},{2}", b.Count, b.Sign,
-                string.Join(string.Empty, b.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
             if (IsZero(a) || IsZero(b)) return new BigInt<T>();
             Debug.Assert(Math.Log(a.Count) < Size);
             Debug.Assert(Math.Log(b.Count) < Size);
@@ -286,12 +260,12 @@ namespace MyMath
                     int i = pair[0];
                     int j = pair[1];
                     int k = i + j;
-                    T x, y;
+                    dynamic x, y;
                     lock (read) x = (i < a.Count) ? a.ElementAt(i) : a.Sign;
                     lock (read) y = (j < b.Count) ? b.ElementAt(j) : b.Sign;
                     try
                     {
-                        var z = (T) checked((dynamic) x*(dynamic) y);
+                        dynamic z = checked(x*y);
                         if (IsZero(z)) return;
                         lock (write) list.Add(new KeyValuePair<int, T>(k, z));
                     }
@@ -304,9 +278,9 @@ namespace MyMath
                             int i0 = pair0[0];
                             int j0 = pair0[1];
                             int k0 = (k << 1) + (i0 + j0);
-                            T x0 = (T) ((dynamic) x >> (i0*HalfSize)) & (dynamic) HalfMask;
-                            T y0 = (T) ((dynamic) y >> (j0*HalfSize)) & (dynamic) HalfMask;
-                            var z0 = (T) unchecked((dynamic) x0*(dynamic) y0);
+                            dynamic x0 = (T) (x >> (i0*HalfSize)) & HalfMask;
+                            dynamic y0 = (T) (y >> (j0*HalfSize)) & HalfMask;
+                            dynamic z0 = unchecked(x0*y0);
                             if ((k0 & 1) == 0)
                             {
                                 if (IsZero(z0)) continue;
@@ -314,8 +288,8 @@ namespace MyMath
                             }
                             else
                             {
-                                var z00 = (T) unchecked(((dynamic) z0 & (dynamic) HalfMask) << HalfSize);
-                                var z01 = (T) unchecked(((dynamic) z0 >> HalfSize) & (dynamic) HalfMask);
+                                dynamic z00 = unchecked((z0 & HalfMask) << HalfSize);
+                                dynamic z01 = unchecked((z0 >> HalfSize) & HalfMask);
                                 if (!IsZero(z00))
                                     lock (write) list.Add(new KeyValuePair<int, T>(k0 >> 1, z00));
                                 if (!IsZero(z01))
@@ -326,7 +300,7 @@ namespace MyMath
                 });
 
             var result = new T[count];
-            Parallel.ForEach(Enumerable.Range(0, count), i => { lock (write) result[i] = (T) (dynamic) 0; });
+            Parallel.ForEach(Enumerable.Range(0, count), i => { lock (write) result[i] = default(T); });
 
             while (list.Any())
             {
@@ -341,31 +315,31 @@ namespace MyMath
                     int i = pair.Key;
                     IEnumerable<T> items = pair.Value;
                     if (i >= count + 1) return;
-                    var x = (T) (dynamic) 0;
-                    var inc = (T) (dynamic) 0;
-                    foreach (T y in items)
+                    dynamic x = default(T);
+                    dynamic inc = default(T);
+                    foreach (dynamic y in items)
                         try
                         {
-                            x = (T) checked((dynamic) x + (dynamic) y);
+                            x = checked(x + y);
                         }
                         catch (OverflowException)
                         {
-                            x = (T) unchecked((dynamic) x + (dynamic) y);
-                            inc = (T) unchecked((dynamic) inc + (T) (dynamic) 1);
+                            x = unchecked(x + y);
+                            inc = unchecked(inc + Uno);
                         }
                     if (!IsZero(x))
                         lock (write)
                         {
-                            T z = default(T);
-                            T y = result[i];
+                            dynamic z = default(T);
+                            dynamic y = result[i];
                             try
                             {
-                                z = (T) checked((dynamic) x + (dynamic) y);
+                                z = checked(x + y);
                             }
                             catch (OverflowException)
                             {
-                                z = (T) unchecked((dynamic) x + (dynamic) y);
-                                inc = (T) unchecked((dynamic) inc + (T) (dynamic) 1);
+                                z = unchecked(x + y);
+                                inc = unchecked(inc + Uno);
                             }
                             finally
                             {
@@ -375,23 +349,14 @@ namespace MyMath
                     if (IsZero(inc)) return;
                     lock (write) next.Add(new KeyValuePair<int, T>(i + 1, inc));
                 });
-                Debug.WriteLine(string.Join(" ", result.Select(v => string.Format("{0:x}", (dynamic) v))));
                 list = next;
             }
             var r = new BigInt<T>(result);
-            Debug.WriteLine("Count={0},Sign={1},{2}", r.Count, r.Sign,
-                string.Join(string.Empty, r.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return r;
         }
 
         public static BigInt<T> operator +(BigInt<T> a, BigInt<T> b)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("Count={0},Sign={1},{2}", b.Count, b.Sign,
-                string.Join(string.Empty, b.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
             if (IsZero(a) && IsZero(b)) return new BigInt<T>();
             if (IsZero(a)) return new BigInt<T>(b);
             if (IsZero(b)) return new BigInt<T>(a);
@@ -405,17 +370,17 @@ namespace MyMath
             var list = new StackListQueue<KeyValuePair<int, T>>();
             Parallel.ForEach(Enumerable.Range(0, count), i =>
             {
-                T x, y, z = default(T);
+                dynamic x, y, z = default(T);
                 lock (read) x = (i < a.Count) ? a.ElementAt(i) : a.Sign;
                 lock (read) y = (i < b.Count) ? b.ElementAt(i) : b.Sign;
                 try
                 {
-                    z = (T) checked((dynamic) x + (dynamic) y);
+                    z = checked(x + y);
                 }
                 catch (OverflowException)
                 {
-                    z = (T) unchecked((dynamic) x + (dynamic) y);
-                    lock (write) list.Add(new KeyValuePair<int, T>(i + 1, (T) (dynamic) 1));
+                    z = unchecked(x + y);
+                    lock (write) list.Add(new KeyValuePair<int, T>(i + 1, Uno));
                 }
                 finally
                 {
@@ -429,20 +394,20 @@ namespace MyMath
                 Parallel.ForEach(list, pair =>
                 {
                     int i = pair.Key;
-                    T inc = pair.Value;
+                    dynamic inc = pair.Value;
                     if (i >= count) return;
                     lock (write)
                     {
-                        T z = default(T);
-                        T x = result[i];
+                        dynamic z = default(T);
+                        dynamic x = result[i];
                         try
                         {
-                            z = (T) checked((dynamic) x + (dynamic) inc);
+                            z = checked(x + inc);
                         }
                         catch (OverflowException)
                         {
-                            z = (T) unchecked((dynamic) x + (dynamic) inc);
-                            next.Add(new KeyValuePair<int, T>(i + 1, (T) (dynamic) 1));
+                            z = unchecked(x + inc);
+                            next.Add(new KeyValuePair<int, T>(i + 1, Uno));
                         }
                         finally
                         {
@@ -453,66 +418,38 @@ namespace MyMath
                 list = next;
             }
             var r = new BigInt<T>(result);
-            Debug.WriteLine("Count={0},Sign={1},{2}", r.Count, r.Sign,
-                string.Join(string.Empty, r.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return r;
         }
 
         public static BigInt<T> operator -(BigInt<T> a)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
             BigInt<T> r = ~a;
             r++;
-            Debug.WriteLine("Count={0},Sign={1},{2}", r.Count, r.Sign,
-                string.Join(string.Empty, r.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return r;
         }
 
         public static BigInt<T> operator ~(BigInt<T> a)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            var r = new BigInt<T>(new StackListQueue<T>(a.Select(v => (T) unchecked(~(dynamic) v)))
+            var r = new BigInt<T>(new StackListQueue<T>(a.Select(v => unchecked((T) ~(dynamic) v)))
             {
-                (T) unchecked (~(dynamic) a.Sign)
+                unchecked (~a.Sign)
             });
-            Debug.WriteLine("Count={0},Sign={1},{2}", r.Count, r.Sign,
-                string.Join(string.Empty, r.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return r;
         }
 
         public static BigInt<T> operator -(BigInt<T> a, BigInt<T> b)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("Count={0},Sign={1},{2}", b.Count, b.Sign,
-                string.Join(string.Empty, b.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
             if (IsZero(a) && IsZero(b)) return new BigInt<T>();
             if (IsZero(a)) return -b;
             if (IsZero(b)) return new BigInt<T>(a);
 
             BigInt<T> r = a + (-b);
 
-            Debug.WriteLine("Count={0},Sign={1},{2}", r.Count, r.Sign,
-                string.Join(string.Empty, r.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return r;
         }
 
         public static BigInt<T> operator ^(BigInt<T> a, BigInt<T> b)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("Count={0},Sign={1},{2}", b.Count, b.Sign,
-                string.Join(string.Empty, b.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
             if (IsZero(a) && IsZero(b)) return new BigInt<T>();
 
             var read = new object();
@@ -522,23 +459,17 @@ namespace MyMath
             var result = new T[count];
             Parallel.ForEach(Enumerable.Range(0, count), i =>
             {
-                T x, y;
+                dynamic x, y;
                 lock (read) x = (i < a.Count) ? a.ElementAt(i) : a.Sign;
                 lock (read) y = (i < b.Count) ? b.ElementAt(i) : b.Sign;
-                var z = (T) unchecked((dynamic) x ^ (dynamic) y);
+                dynamic z = unchecked(x ^ y);
                 lock (write) result[i] = z;
             });
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return new BigInt<T>(result);
         }
 
         public static BigInt<T> operator |(BigInt<T> a, BigInt<T> b)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("Count={0},Sign={1},{2}", b.Count, b.Sign,
-                string.Join(string.Empty, b.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
             if (IsZero(a) && IsZero(b)) return new BigInt<T>();
 
             var read = new object();
@@ -548,16 +479,13 @@ namespace MyMath
             var result = new T[count];
             Parallel.ForEach(Enumerable.Range(0, count), i =>
             {
-                T x, y;
+                dynamic x, y;
                 lock (read) x = (i < a.Count) ? a.ElementAt(i) : a.Sign;
                 lock (read) y = (i < b.Count) ? b.ElementAt(i) : b.Sign;
-                var z = (T) unchecked((dynamic) x | (dynamic) y);
+                dynamic z = unchecked(x | y);
                 lock (write) result[i] = z;
             });
             var r = new BigInt<T>(result);
-            Debug.WriteLine("Count={0},Sign={1},{2}", r.Count, r.Sign,
-                string.Join(string.Empty, r.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return r;
         }
 
@@ -592,19 +520,19 @@ namespace MyMath
 
         #region
 
-        public static bool IsZero(T a)
+        public static bool IsZero(dynamic a)
         {
-            return unchecked((dynamic) a == (T) (dynamic) 0);
+            return unchecked(a == default(T));
         }
 
-        private static bool IsOne(T a)
+        private static bool IsOne(dynamic a)
         {
-            return unchecked((dynamic) a == (T) (dynamic) 1);
+            return IsZero(unchecked(a - 1));
         }
 
-        private static bool IsMinusOne(T a)
+        private static bool IsMinusOne(dynamic a)
         {
-            return unchecked((dynamic) a == (T) (dynamic) (-1));
+            return IsZero(unchecked(a + 1));
         }
 
         #endregion
@@ -613,11 +541,6 @@ namespace MyMath
 
         private static BigInt<T> DivRem(ref BigInt<T> a, BigInt<T> b)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("Count={0},Sign={1},{2}", b.Count, b.Sign,
-                string.Join(string.Empty, b.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
             if (IsZero(b)) throw new DivideByZeroException();
             if (IsOne(b)) return new BigInt<T>(a);
             if (IsMinusOne(b)) return -a;
@@ -647,19 +570,11 @@ namespace MyMath
                 ? new BigInt<T>(r.GetRange(count1 - count2 + 1, r.Count - (count1 - count2 + 1)))
                 : new BigInt<T>();
             a.ReplaceAll(q);
-            Debug.WriteLine("Count={0},Sign={1},{2}", r.Count, r.Sign,
-                string.Join(string.Empty, r.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return r;
         }
 
         public static BigInt<T> operator /(BigInt<T> a, BigInt<T> b)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("Count={0},Sign={1},{2}", b.Count, b.Sign,
-                string.Join(string.Empty, b.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
             if (IsZero(b)) throw new DivideByZeroException();
             if (IsOne(b)) return new BigInt<T>(a);
             if (IsMinusOne(b)) return -a;
@@ -686,19 +601,11 @@ namespace MyMath
                 r -= divider;
                 q++;
             }
-            Debug.WriteLine("Count={0},Sign={1},{2}", q.Count, q.Sign,
-                string.Join(string.Empty, q.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return q;
         }
 
         public static BigInt<T> operator %(BigInt<T> a, BigInt<T> b)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("Count={0},Sign={1},{2}", b.Count, b.Sign,
-                string.Join(string.Empty, b.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
             if (IsZero(b)) throw new DivideByZeroException();
             if (IsOne(b)) return new BigInt<T>(a);
             if (IsMinusOne(b)) return -a;
@@ -728,9 +635,6 @@ namespace MyMath
             r = (count1 - count2 + 1 < r.Count)
                 ? new BigInt<T>(r.GetRange(count1 - count2 + 1, r.Count - (count1 - count2 + 1)))
                 : new BigInt<T>();
-            Debug.WriteLine("Count={0},Sign={1},{2}", r.Count, r.Sign,
-                string.Join(string.Empty, r.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return r;
         }
 
@@ -741,8 +645,8 @@ namespace MyMath
         public static bool operator <(BigInt<T> a, BigInt<T> b)
         {
             if (IsNegative(a) && IsNegative(b)) return (-a) > (-b);
-            if ((dynamic) a.Sign < (dynamic) b.Sign) return true;
-            if ((dynamic) a.Sign > (dynamic) b.Sign) return false;
+            if (a.Sign < b.Sign) return true;
+            if (a.Sign > b.Sign) return false;
             if (IsZero(a) && IsZero(b)) return false;
             if (IsZero(a)) return true;
             if (IsZero(b)) return false;
@@ -752,10 +656,10 @@ namespace MyMath
             int count = Math.Max(a.Count, b.Count);
             while (count-- > 0)
             {
-                T x = a.ElementAt(count);
-                T y = b.ElementAt(count);
-                if ((dynamic) x < (dynamic) y) return true;
-                if ((dynamic) x > (dynamic) y) return false;
+                dynamic x = a.ElementAt(count);
+                dynamic y = b.ElementAt(count);
+                if (x < y) return true;
+                if (x > y) return false;
             }
             return false;
         }
@@ -763,8 +667,8 @@ namespace MyMath
         public static bool operator >(BigInt<T> a, BigInt<T> b)
         {
             if (IsNegative(a) && IsNegative(b)) return (-a) < (-b);
-            if ((dynamic) a.Sign > (dynamic) b.Sign) return true;
-            if ((dynamic) a.Sign < (dynamic) b.Sign) return false;
+            if (a.Sign > b.Sign) return true;
+            if (a.Sign < b.Sign) return false;
             if (IsZero(a) && IsZero(b)) return false;
             if (IsZero(b)) return true;
             if (IsZero(a)) return false;
@@ -774,10 +678,10 @@ namespace MyMath
             int count = Math.Max(a.Count, b.Count);
             while (count-- > 0)
             {
-                T x = a.ElementAt(count);
-                T y = b.ElementAt(count);
-                if ((dynamic) x > (dynamic) y) return true;
-                if ((dynamic) x < (dynamic) y) return false;
+                dynamic x = a.ElementAt(count);
+                dynamic y = b.ElementAt(count);
+                if (x > y) return true;
+                if (x < y) return false;
             }
             return false;
         }
@@ -808,61 +712,49 @@ namespace MyMath
 
         public static BigInt<T> operator ++(BigInt<T> a)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
             a.Add(a.Sign);
             int count = a.Count;
             for (int i = 0; i < count; i++)
             {
-                var x = (T) unchecked((dynamic) a[i] + (T) (dynamic) 1);
+                dynamic x = unchecked((dynamic) a[i] + Uno);
                 a[i] = x;
                 if (!IsZero(x)) break;
             }
             for (;
                 count > 1 && IsZero(a.ElementAt(count - 1)) &&
-                IsZero((dynamic) a.ElementAt(count - 2) & (dynamic) SignBitMask);
+                IsZero((dynamic) a.ElementAt(count - 2) & SignMask);
                 count--)
                 a.Pop();
             for (;
                 count > 1 && IsMinusOne(a.ElementAt(count - 1)) &&
-                !IsZero((dynamic) a.ElementAt(count - 2) & (dynamic) SignBitMask);
+                !IsZero((dynamic) a.ElementAt(count - 2) & SignMask);
                 count--)
                 a.Pop();
             if (count == 1 && IsZero(a.ElementAt(count - 1))) a.Pop();
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return a;
         }
 
         public static BigInt<T> operator --(BigInt<T> a)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
             a.Add(a.Sign);
             int count = a.Count;
             for (int i = 0; i < count; i++)
             {
-                var x = (T) unchecked((dynamic) a[i] - (T) (dynamic) 1);
+                dynamic x = unchecked((dynamic) a[i] - Uno);
                 a[i] = x;
                 if (!IsMinusOne(x)) break;
             }
             for (;
                 count > 1 && IsZero(a.ElementAt(count - 1)) &&
-                IsZero((dynamic) a.ElementAt(count - 2) & (dynamic) SignBitMask);
+                IsZero(a.ElementAt(count - 2) & SignMask);
                 count--)
                 a.Pop();
             for (;
                 count > 1 && IsMinusOne(a.ElementAt(count - 1)) &&
-                !IsZero((dynamic) a.ElementAt(count - 2) & (dynamic) SignBitMask);
+                !IsZero(a.ElementAt(count - 2) & SignMask);
                 count--)
                 a.Pop();
             if (count == 1 && IsZero(a.ElementAt(count - 1))) a.Pop();
-            Debug.WriteLine("Count={0},Sign={1},{2}", a.Count, a.Sign,
-                string.Join(string.Empty, a.GetReverse().Select(v => string.Format("{0:x}", (dynamic) v))));
-            Debug.WriteLine("End {0}::{1}", typeof (BigInt<T>).Name, MethodBase.GetCurrentMethod().Name);
             return a;
         }
 

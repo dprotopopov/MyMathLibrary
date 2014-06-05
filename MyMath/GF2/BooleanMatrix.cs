@@ -87,17 +87,7 @@ namespace MyMath.GF2
             // Приведение матрицы к каноническому виду
             GaussJordan();
             // Проверка на нулевые строки
-            return this.All(NotZero);
-        }
-
-        private bool NotZero(BooleanVector arg)
-        {
-            return arg.Any(NotZero);
-        }
-
-        private bool NotZero(bool arg)
-        {
-            return arg;
+            return this.All(BooleanVector.NotZero);
         }
 
         /// <summary>
@@ -125,10 +115,10 @@ namespace MyMath.GF2
             Parallel.ForEach(
                 from i in Enumerable.Range(0, Rows)
                 from j in Enumerable.Range(0, Columns)
-                select new[] {i, j}, pair =>
+                select new {row = i, col = j}, pair =>
                 {
-                    int i = pair[0];
-                    int j = pair[1];
+                    int i = pair.row;
+                    int j = pair.col;
                     bool x;
                     lock (read) x = this[i][j];
                     lock (write) prev[i, j] = x;
@@ -147,10 +137,10 @@ namespace MyMath.GF2
             Parallel.ForEach(
                 from i in Enumerable.Range(0, Rows)
                 from j in Enumerable.Range(0, Columns)
-                select new[] {i, j}, pair =>
+                select new {row = i, col = j}, pair =>
                 {
-                    int i = pair[0];
-                    int j = pair[1];
+                    int i = pair.row;
+                    int j = pair.col;
                     bool x;
                     lock (read) x = prev[i, j];
                     lock (write) this[i][j] = x;
@@ -180,18 +170,23 @@ namespace MyMath.GF2
             Debug.Assert(prev.GetLength(0) == next.GetLength(0));
             Debug.Assert(prev.GetLength(1) == next.GetLength(1));
 
-            bool d = prev[row, col];
+            int rows = prev.GetLength(0);
+            int cols = prev.GetLength(1);
 
             var read = new object();
             var write = new object();
 
+            bool d;
+            lock (read) d = prev[row, col];
+            Debug.Assert(d);
+
             Parallel.ForEach(
-                from i in Enumerable.Range(0, prev.GetLength(0))
-                from j in Enumerable.Range(0, prev.GetLength(1))
-                select new[] {i, j}, pair =>
+                from i in Enumerable.Range(0, rows)
+                from j in Enumerable.Range(0, cols)
+                select new { row = i, col = j }, pair =>
                 {
-                    int i = pair[0];
-                    int j = pair[1];
+                    int i = pair.row;
+                    int j = pair.col;
                     if (i == row && j == col)
                         lock (write) next[i, j] = true;
                     else if (j == col)
@@ -200,19 +195,16 @@ namespace MyMath.GF2
                     {
                         bool a;
                         lock (read) a = prev[i, j];
-                        bool y = Div(a, d);
+                        bool y = a && d;
                         lock (write) next[i, j] = y;
                     }
                     else
                     {
                         bool a, b, c;
-                        lock (read)
-                        {
-                            a = prev[i, j];
-                            b = prev[i, col];
-                            c = prev[row, j];
-                        }
-                        bool y = SubMulDiv(a, b, c, d);
+                        lock (read) a = prev[i, j];
+                        lock (read) b = prev[i, col];
+                        lock (read) c = prev[row, j];
+                        bool y = a ^ (b && c && d);
                         lock (write) next[i, j] = y;
                     }
                 });
@@ -223,16 +215,6 @@ namespace MyMath.GF2
             int index1 = x.IndexOf(true);
             int index2 = y.IndexOf(true);
             return index1 - index2;
-        }
-
-        private static bool Div(bool a, bool b)
-        {
-            return a && b;
-        }
-
-        private static bool SubMulDiv(bool a, bool b, bool c, bool d)
-        {
-            return a ^ (b && c && d);
         }
 
         public override string ToString()
