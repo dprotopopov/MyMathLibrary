@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using MyLibrary.Collections;
 
@@ -59,16 +58,13 @@ namespace MyMath
         ///     НЭ = СЭ - (А*В)/РЭ
         ///     РЭ - разрешающий элемент, А и В - элементы матрицы, образующие прямоугольник с элементами СЭ и РЭ.
         /// </summary>
-        public void GaussJordan()
+        public void GaussJordan(int first = 0, int last = Int32.MaxValue)
         {
-            Debug.WriteLine("Begin {0}::{1}", GetType().Name, MethodBase.GetCurrentMethod().Name);
-            int row = Rows;
-            int col = Columns;
+            int row = Math.Min(Rows, last);
+            int col = Math.Min(Columns, last);
 
-            Debug.Assert(this.All(r => r.Count == col));
-
-            var prev = new T[row, col];
-            var next = new T[row, col];
+            var prev = new T[Rows, Columns];
+            var next = new T[Rows, Columns];
 
             var read = new object();
             var write = new object();
@@ -85,14 +81,16 @@ namespace MyMath
                     lock (write) prev[i, j] = x;
                 });
 
-            for (int i = 0; i < Math.Min(Rows, Columns) && FindNotZero(prev, i, ref row, ref col); i++)
+            for (int i = first;
+                i < Math.Min(Math.Min(Rows, Columns), last) && FindNotZero(prev, i, ref row, ref col);
+                i++)
             {
                 GaussJordanStep(prev, next, row, col);
                 T[,] t = prev;
                 prev = next;
                 next = t;
-                row = Rows;
-                col = Columns;
+                row = Math.Min(Rows, last);
+                col = Math.Min(Columns, last);
             }
 
             Parallel.ForEach(
@@ -106,12 +104,10 @@ namespace MyMath
                     lock (read) x = prev[i, j];
                     lock (write) this[i][j] = x;
                 });
-            Debug.WriteLine("End {0}::{1}", GetType().Name, MethodBase.GetCurrentMethod().Name);
         }
 
         private static bool FindNotZero(T[,] items, int i, ref int row, ref int col)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (Matrix<T>).Name, MethodBase.GetCurrentMethod().Name);
             Debug.Assert(row <= items.GetLength(0));
             Debug.Assert(col <= items.GetLength(1));
             int total = (row - i)*(col - i);
@@ -126,13 +122,11 @@ namespace MyMath
                 T x = items[row, col];
                 if (Math.Abs(Convert.ToDouble(x)) > 0.0) break;
             }
-            Debug.WriteLine("End {0}::{1}", typeof (Matrix<T>).Name, MethodBase.GetCurrentMethod().Name);
             return j < total;
         }
 
         public static void GaussJordanStep(T[,] prev, T[,] next, int row, int col)
         {
-            Debug.WriteLine("Begin {0}::{1}", typeof (Matrix<T>).Name, MethodBase.GetCurrentMethod().Name);
             Debug.Assert(prev.GetLength(0) == next.GetLength(0));
             Debug.Assert(prev.GetLength(1) == next.GetLength(1));
 
@@ -180,7 +174,6 @@ namespace MyMath
                         lock (write) next[i, j] = y;
                     }
                 });
-            Debug.WriteLine("End {0}::{1}", typeof (Matrix<T>).Name, MethodBase.GetCurrentMethod().Name);
         }
 
         public static int CompareByIndexOfFirstNotZero(Vector<T> x, Vector<T> y)

@@ -151,18 +151,18 @@ namespace MyMath.GF2
         {
             Debug.Assert(row <= items.GetLength(0));
             Debug.Assert(col <= items.GetLength(1));
-            int total = (row - i)*(col - i);
+            int total = (row - i) * (col - i);
             int n = col - i;
-            for (int j = 0; j < total; j++)
+            int j;
+            for (j = 0; j < total; j++)
             {
-                row = i + j/n;
-                col = i + (j%n);
+                row = i + (j / n);
+                col = i + (j % n);
                 Debug.Assert(row <= items.GetLength(0));
                 Debug.Assert(col <= items.GetLength(1));
-                if (items[row, col])
-                    return true;
+                if (items[row, col]) break;
             }
-            return false;
+            return j < total;
         }
 
         public static void GaussJordanStep(bool[,] prev, bool[,] next, int row, int col)
@@ -183,7 +183,7 @@ namespace MyMath.GF2
             Parallel.ForEach(
                 from i in Enumerable.Range(0, rows)
                 from j in Enumerable.Range(0, cols)
-                select new { row = i, col = j }, pair =>
+                select new {row = i, col = j}, pair =>
                 {
                     int i = pair.row;
                     int j = pair.col;
