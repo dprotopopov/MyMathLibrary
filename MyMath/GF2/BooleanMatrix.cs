@@ -151,13 +151,13 @@ namespace MyMath.GF2
         {
             Debug.Assert(row <= items.GetLength(0));
             Debug.Assert(col <= items.GetLength(1));
-            int total = (row - i) * (col - i);
-            int n = col - i;
+            int total = (row - i)*col;
+            int n = col;
             int j;
             for (j = 0; j < total; j++)
             {
-                row = i + (j / n);
-                col = i + (j % n);
+                row = i + (j/n);
+                col = (j%n);
                 Debug.Assert(row <= items.GetLength(0));
                 Debug.Assert(col <= items.GetLength(1));
                 if (items[row, col]) break;

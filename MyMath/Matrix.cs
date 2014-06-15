@@ -9,6 +9,12 @@ namespace MyMath
 {
     public class Matrix<T> : Vector<Vector<T>>
     {
+        public enum Transformation
+        {
+            ByRows = 1,
+            ByColumns = - 1,
+        };
+
         /// <summary>
         ///     Создание матрицы, состоящей из матрицы коэффициентов и вектора правой части
         /// </summary>
@@ -58,7 +64,8 @@ namespace MyMath
         ///     НЭ = СЭ - (А*В)/РЭ
         ///     РЭ - разрешающий элемент, А и В - элементы матрицы, образующие прямоугольник с элементами СЭ и РЭ.
         /// </summary>
-        public void GaussJordan(int first = 0, int last = Int32.MaxValue)
+        public void GaussJordan(Transformation transformation = Transformation.ByRows, int first = 0,
+            int last = Int32.MaxValue)
         {
             int row = Math.Min(Rows, last);
             int col = Math.Min(Columns, last);
@@ -82,10 +89,10 @@ namespace MyMath
                 });
 
             for (int i = first;
-                i < Math.Min(Math.Min(Rows, Columns), last) && FindNotZero(prev, i, ref row, ref col);
+                i < Math.Min(Math.Min(Rows, Columns), last) && FindNotZero(transformation, prev, i, ref row, ref col);
                 i++)
             {
-                GaussJordanStep(prev, next, row, col);
+                GaussJordanStep(transformation, prev, next, row, col);
                 T[,] t = prev;
                 prev = next;
                 next = t;
@@ -106,26 +113,39 @@ namespace MyMath
                 });
         }
 
-        private static bool FindNotZero(T[,] items, int i, ref int row, ref int col)
+        private static bool FindNotZero(Transformation t, T[,] items, int i, ref int row, ref int col)
         {
             Debug.Assert(row <= items.GetLength(0));
             Debug.Assert(col <= items.GetLength(1));
-            int total = (row - i)*(col - i);
-            int n = col - i;
-            int j;
-            for (j = 0; j < total; j++)
+            switch (t)
             {
-                row = i + (j/n);
-                col = i + (j%n);
-                Debug.Assert(row <= items.GetLength(0));
-                Debug.Assert(col <= items.GetLength(1));
-                T x = items[row, col];
-                if (Math.Abs(Convert.ToDouble(x)) > 0.0) break;
+                case Transformation.ByRows:
+                    for (int j = 0, total = (row - i)*col, n = col; j < total; j++)
+                    {
+                        row = i + (j/n);
+                        col = (j%n);
+                        Debug.Assert(row <= items.GetLength(0));
+                        Debug.Assert(col <= items.GetLength(1));
+                        T x = items[row, col];
+                        if (Math.Abs(Convert.ToDouble(x)) > 0.0) return true;
+                    }
+                    return false;
+                case Transformation.ByColumns:
+                    for (int j = 0, total = row*(col - i), n = row; j < total; j++)
+                    {
+                        col = i + (j/n);
+                        row = (j%n);
+                        Debug.Assert(row <= items.GetLength(0));
+                        Debug.Assert(col <= items.GetLength(1));
+                        T x = items[row, col];
+                        if (Math.Abs(Convert.ToDouble(x)) > 0.0) return true;
+                    }
+                    return false;
             }
-            return j < total;
+            throw new NotImplementedException();
         }
 
-        public static void GaussJordanStep(T[,] prev, T[,] next, int row, int col)
+        public static void GaussJordanStep(Transformation t, T[,] prev, T[,] next, int row, int col)
         {
             Debug.Assert(prev.GetLength(0) == next.GetLength(0));
             Debug.Assert(prev.GetLength(1) == next.GetLength(1));
@@ -153,9 +173,11 @@ namespace MyMath
                         var one = (T) Convert.ChangeType(1, typeof (T));
                         lock (write) next[i, j] = one;
                     }
-                    else if (j == col)
+                    else if (j == col && t == Transformation.ByRows ||
+                             i == row && t == Transformation.ByColumns)
                         lock (write) next[i, j] = default(T);
-                    else if (i == row)
+                    else if (i == row && t == Transformation.ByRows ||
+                             j == col && t == Transformation.ByColumns)
                     {
                         T a;
                         lock (read) a = prev[i, j];
@@ -169,8 +191,10 @@ namespace MyMath
                         lock (read) b = prev[i, col];
                         lock (read) c = prev[row, j];
                         var y =
-                            (T) Convert.ChangeType(Convert.ToDouble(a) - (Convert.ToDouble(b)*Convert.ToDouble(c)/d),
-                                typeof (T));
+                            (T)
+                                Convert.ChangeType(
+                                    Convert.ToDouble(a) - (Convert.ToDouble(b)*Convert.ToDouble(c)/d),
+                                    typeof (T));
                         lock (write) next[i, j] = y;
                     }
                 });
