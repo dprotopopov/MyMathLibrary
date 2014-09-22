@@ -9,10 +9,16 @@ namespace MyMath
 {
     public class Matrix<T> : Vector<Vector<T>>
     {
+        public enum Search
+        {
+            SearchByRows = 1,
+            SearchByColumns = -1,
+        };
+
         public enum Transform
         {
-            ByRows = 1,
-            ByColumns = - 1,
+            TransformByRows = 1,
+            TransformByColumns = -1,
         };
 
         /// <summary>
@@ -41,7 +47,7 @@ namespace MyMath
                 Add(new Vector<T>(vector));
         }
 
-        protected Matrix()
+        public Matrix()
         {
         }
 
@@ -52,7 +58,128 @@ namespace MyMath
 
         public int Columns
         {
-            get { return this.Max(row => row.Count); }
+            get { return this.Any() ? this.Max(row => row.Count) : 0; }
+        }
+
+        public void AddColumn()
+        {
+            foreach (var row in this) row.Append(default(T));
+        }
+
+        public Matrix<T> SubMatrix(IEnumerable<int> rows, IEnumerable<int> columns)
+        {
+            var subMatrix = new Matrix<T>(rows.Count(), columns.Count());
+            var read = new object();
+            var write = new object();
+
+            Parallel.ForEach(
+                from i in Enumerable.Range(0, rows.Count())
+                from j in Enumerable.Range(0, columns.Count())
+                select new {row = i, col = j}, pair =>
+                {
+                    int i = pair.row;
+                    int j = pair.col;
+                    T x;
+                    lock (read) x = this[rows.ElementAt(i)][columns.ElementAt(j)];
+                    lock (write) subMatrix[i][j] = x;
+                });
+
+            return subMatrix;
+        }
+
+        public static Matrix<T> operator -(Matrix<T> a, Matrix<T> b)
+        {
+            Debug.Assert(a.Rows == b.Rows);
+            Debug.Assert(a.Columns == b.Columns);
+            int rows = Math.Max(a.Rows, b.Rows);
+            int columns = Math.Max(a.Columns, b.Columns);
+            var result = new Matrix<T>(rows, columns);
+            for (int i = 0; i < rows; i++)
+                for (int j = 0; j < columns; j++)
+                {
+                    T x = a[i][j];
+                    T y = b[i][j];
+                    result[i][j] = (T) Convert.ChangeType(Convert.ToDouble(x) - Convert.ToDouble(y), typeof (T));
+                }
+            return result;
+        }
+
+        public static Matrix<T> operator +(Matrix<T> a, Matrix<T> b)
+        {
+            Debug.Assert(a.Rows == b.Rows);
+            Debug.Assert(a.Columns == b.Columns);
+            int rows = Math.Max(a.Rows, b.Rows);
+            int columns = Math.Max(a.Columns, b.Columns);
+            var result = new Matrix<T>(rows, columns);
+            for (int i = 0; i < rows; i++)
+                for (int j = 0; j < columns; j++)
+                {
+                    T x = a[i][j];
+                    T y = b[i][j];
+                    result[i][j] = (T) Convert.ChangeType(Convert.ToDouble(x) + Convert.ToDouble(y), typeof (T));
+                }
+            return result;
+        }
+
+        public static Matrix<T> operator *(Matrix<T> a, Matrix<T> b)
+        {
+            Debug.Assert(a.Columns == b.Rows);
+            int rows = a.Rows;
+            int columns = b.Columns;
+            int commons = Math.Max(a.Columns, b.Rows);
+            var result = new Matrix<T>(rows, columns);
+            for (int i = 0; i < rows; i++)
+                for (int j = 0; j < columns; j++)
+                {
+                    T t = default(T);
+                    for (int k = 0; k < commons; k++)
+                    {
+                        T x = a[i][k];
+                        T y = b[k][j];
+                        t =
+                            (T)
+                                Convert.ChangeType(Convert.ToDouble(t) + (Convert.ToDouble(x)*Convert.ToDouble(y)),
+                                    typeof (T));
+                    }
+                    result[i][j] = t;
+                }
+            return result;
+        }
+
+        public static bool IsZero(Matrix<T> a)
+        {
+            return a.All(row => row.All(IsZero));
+        }
+
+        public static bool IsZero(T arg)
+        {
+            double x = Math.Abs(Convert.ToDouble(arg));
+            return x <= 0.0*x;
+        }
+
+        public void AddRow()
+        {
+            Append(new Vector<T>(Enumerable.Repeat(default(T), Columns)));
+        }
+
+        public void AppendColumns(IEnumerable<IEnumerable<T>> b)
+        {
+            Debug.Assert(Rows == b.Count());
+            Debug.Assert(this.All(row => row.Count == Columns));
+
+            int index = 0;
+            foreach (var row in this)
+            {
+                row.Append(b.ElementAt(index++));
+            }
+        }
+
+        public void AppendRows(IEnumerable<IEnumerable<T>> b)
+        {
+            foreach (var row in b)
+            {
+                Append(new Vector<T>(row));
+            }
         }
 
         /// <summary>
@@ -64,7 +191,9 @@ namespace MyMath
         ///     НЭ = СЭ - (А*В)/РЭ
         ///     РЭ - разрешающий элемент, А и В - элементы матрицы, образующие прямоугольник с элементами СЭ и РЭ.
         /// </summary>
-        public void GaussJordan(Transform transform = Transform.ByRows, int first = 0,
+        public void GaussJordan(Search search = Search.SearchByRows,
+            Transform transform = Transform.TransformByRows,
+            int first = 0,
             int last = Int32.MaxValue)
         {
             int row = Math.Min(Rows, last);
@@ -89,7 +218,7 @@ namespace MyMath
                 });
 
             for (int i = first;
-                i < Math.Min(Math.Min(Rows, Columns), last) && FindNotZero(transform, prev, i, ref row, ref col);
+                i < Math.Min(Math.Min(Rows, Columns), last) && FindNotZero(search, prev, i, ref row, ref col);
                 i++)
             {
                 GaussJordanStep(transform, prev, next, row, col);
@@ -113,13 +242,13 @@ namespace MyMath
                 });
         }
 
-        private static bool FindNotZero(Transform t, T[,] items, int i, ref int row, ref int col)
+        private static bool FindNotZero(Search search, T[,] items, int i, ref int row, ref int col)
         {
             Debug.Assert(row <= items.GetLength(0));
             Debug.Assert(col <= items.GetLength(1));
-            switch (t)
+            switch (search)
             {
-                case Transform.ByRows:
+                case Search.SearchByRows:
                     for (int j = 0, total = (row - i)*col, n = col; j < total; j++)
                     {
                         row = i + (j/n);
@@ -130,7 +259,7 @@ namespace MyMath
                         if (Math.Abs(Convert.ToDouble(x)) > 0.0) return true;
                     }
                     return false;
-                case Transform.ByColumns:
+                case Search.SearchByColumns:
                     for (int j = 0, total = row*(col - i), n = row; j < total; j++)
                     {
                         col = i + (j/n);
@@ -145,7 +274,7 @@ namespace MyMath
             throw new NotImplementedException();
         }
 
-        public static void GaussJordanStep(Transform t, T[,] prev, T[,] next, int row, int col)
+        public static void GaussJordanStep(Transform transform, T[,] prev, T[,] next, int row, int col)
         {
             Debug.Assert(prev.GetLength(0) == next.GetLength(0));
             Debug.Assert(prev.GetLength(1) == next.GetLength(1));
@@ -173,11 +302,11 @@ namespace MyMath
                         var one = (T) Convert.ChangeType(1, typeof (T));
                         lock (write) next[i, j] = one;
                     }
-                    else if (j == col && t == Transform.ByRows ||
-                             i == row && t == Transform.ByColumns)
+                    else if (j == col && transform == Transform.TransformByRows ||
+                             i == row && transform == Transform.TransformByColumns)
                         lock (write) next[i, j] = default(T);
-                    else if (i == row && t == Transform.ByRows ||
-                             j == col && t == Transform.ByColumns)
+                    else if (i == row && transform == Transform.TransformByRows ||
+                             j == col && transform == Transform.TransformByColumns)
                     {
                         T a;
                         lock (read) a = prev[i, j];

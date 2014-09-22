@@ -61,7 +61,7 @@ namespace MyMath
             return new Vector<T>(a.Select(t => (T) (-(dynamic) t)));
         }
 
-        public static bool IsZero(IEnumerable<T> a)
+        public static bool IsZero(Vector<T> a)
         {
             return (!a.Any()) || a.All(IsZero);
         }
@@ -92,6 +92,14 @@ namespace MyMath
                 lock (write) buffer[i] = z;
             });
             return (T) (dynamic) buffer.Aggregate(0.0, (current, y) => current + y);
+        }
+
+        public void Append(IEnumerable<T> value)
+        {
+            foreach (T x in value)
+            {
+                Append(x);
+            }
         }
     }
 }

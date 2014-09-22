@@ -1,0 +1,24 @@
+<Modules>
+  <Module PersistentId="325A76AB-5185-432D-BE58-8C6DDA03C458" ModuleId="MyCudafy" />
+  <Module PersistentId="5F759E1E-27BB-4127-AE22-D220F6AFBC71" ModuleId="MyMath" />
+  <Module PersistentId="311804A4-D8FF-455D-B219-D0B08DCBC049" ModuleId="MyMath.UnitTest" />
+  <Module PersistentId="E80CF993-5E07-4875-85FE-A2ADCF76558D" ModuleId="MyLibrary" />
+  <Module PersistentId="mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, mvid=57f117d6-0f1d-4803-9943-f0373f947eea" ModuleId="mscorlib" />
+  <Module PersistentId="System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, mvid=f35b1905-eb31-499a-b1ec-0e884d17becf" ModuleId="System" />
+  <Module PersistentId="System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, mvid=86d72b42-fe14-44f7-9eeb-9412558864f3" ModuleId="System.Core" />
+  <Module PersistentId="System.Xml.Linq, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, mvid=9ef2984d-357b-4c5b-9c10-a88056b0814c" ModuleId="System.Xml.Linq" />
+  <Module PersistentId="System.Data.DataSetExtensions, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, mvid=bcef3c18-e646-499b-b7b6-a5f277a6da60" ModuleId="System.Data.DataSetExtensions" />
+  <Module PersistentId="Microsoft.CSharp, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, mvid=a3fc6c53-7f10-4ff3-92ae-2ffd72620702" ModuleId="Microsoft.CSharp" />
+  <Module PersistentId="System.Data, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, mvid=e50929b8-7345-40df-9c15-9270a6530573" ModuleId="System.Data" />
+  <Module PersistentId="System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, mvid=9e82231a-4aae-4180-b0ac-29f95ed8654f" ModuleId="System.Xml" />
+  <Module PersistentId="Microsoft.VisualStudio.QualityTools.UnitTestFramework, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, mvid=f644d728-c1f1-48ef-b944-a5d0a59ded82" ModuleId="Microsoft.VisualStudio.QualityTools.UnitTestFramework" />
+  <Module PersistentId="EntityFramework, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, mvid=7efe2082-2ace-47bd-8b00-86bcc0c47d0d" ModuleId="EntityFramework" />
+  <Module PersistentId="EntityFramework.SqlServer, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, mvid=f693bdaa-ca20-439c-8f9f-93ad09498d07" ModuleId="EntityFramework.SqlServer" />
+  <Module PersistentId="Mono.Security, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756, mvid=73b5a7a8-fbbb-4f60-b8d1-98e7c416a2d4" ModuleId="Mono.Security" />
+  <Module PersistentId="Npgsql, Version=2.1.3.0, Culture=neutral, PublicKeyToken=5d8b90d52f46fda7, mvid=84c65952-0f22-444f-aa74-45a46df7bb5d" ModuleId="Npgsql" />
+  <Module PersistentId="Npgsql.EntityFramework, Version=2.1.3.0, Culture=neutral, PublicKeyToken=5d8b90d52f46fda7, mvid=de88c11d-f59a-432c-a4d1-3a6c0176fc44" ModuleId="Npgsql.EntityFramework" />
+  <Module PersistentId="System.ComponentModel.DataAnnotations, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, mvid=9aa3bae6-5ca0-4c84-adfc-2a452b409299" ModuleId="System.ComponentModel.DataAnnotations" />
+  <Module PersistentId="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, mvid=22a2519c-cf97-46b3-8240-5aff64fc2e0c" ModuleId="System.Windows.Forms" />
+  <Module PersistentId="Cudafy.NET, Version=1.25.4963.10126, Culture=neutral, PublicKeyToken=63a4c9931616906b, mvid=0c4e245c-d970-4d13-99ee-eefc38fd5002" ModuleId="Cudafy.NET" />
+  <Module PersistentId="System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, mvid=653765d5-687a-40ff-b1f4-2ec3ce1826e2" ModuleId="System.Drawing" />
+</Modules>
