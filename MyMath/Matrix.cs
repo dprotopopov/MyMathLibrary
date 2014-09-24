@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Security.Policy;
 using System.Threading.Tasks;
 using MyLibrary.Collections;
 
@@ -279,9 +280,6 @@ namespace MyMath
             Debug.Assert(prev.GetLength(0) == next.GetLength(0));
             Debug.Assert(prev.GetLength(1) == next.GetLength(1));
 
-            int rows = prev.GetLength(0);
-            int cols = prev.GetLength(1);
-
             var read = new object();
             var write = new object();
 
@@ -290,43 +288,102 @@ namespace MyMath
             double d = Convert.ToDouble(x);
             Debug.Assert(Math.Abs(d) > 0.0);
 
+            var rows0 = new StackListQueue<int>();
+            var cols0 = new StackListQueue<int>();
+            var rows = new StackListQueue<int>();
+            var cols = new StackListQueue<int>();
+
+            for (int i = 0; i < prev.GetLength(0); i++)
+                if (IsZero(prev[i, col])) rows0.Add(i);
+                else rows.Add(i);
+            for (int j = 0; j < prev.GetLength(1); j++)
+                if (IsZero(prev[row, j])) cols0.Add(j);
+                else cols.Add(j);
+
+            rows.Remove(row);
+            cols.Remove(col);
+
             Parallel.ForEach(
-                from i in Enumerable.Range(0, rows)
-                from j in Enumerable.Range(0, cols)
+                from i in rows
+                from j in cols
                 select new {row = i, col = j}, pair =>
                 {
                     int i = pair.row;
                     int j = pair.col;
-                    if (i == row && j == col)
-                    {
-                        var one = (T) Convert.ChangeType(1, typeof (T));
-                        lock (write) next[i, j] = one;
-                    }
-                    else if (j == col && transform == Transform.TransformByRows ||
-                             i == row && transform == Transform.TransformByColumns)
-                        lock (write) next[i, j] = default(T);
-                    else if (i == row && transform == Transform.TransformByRows ||
-                             j == col && transform == Transform.TransformByColumns)
+                    T a, b, c;
+                    lock (read) a = prev[i, j];
+                    lock (read) b = prev[i, col];
+                    lock (read) c = prev[row, j];
+                    var y =
+                        (T)
+                            Convert.ChangeType(
+                                Convert.ToDouble(a) - (Convert.ToDouble(b)*Convert.ToDouble(c)/d),
+                                typeof (T));
+                    lock (write) next[i, j] = y;
+                });
+
+            Parallel.ForEach(
+                from i in rows0
+                from j in cols
+                select new {row = i, col = j}, pair =>
+                {
+                    int i = pair.row;
+                    int j = pair.col;
+                    T y;
+                    lock (read) y = prev[i, j];
+                    lock (write) next[i, j] = y;
+                });
+
+            Parallel.ForEach(
+                from i in rows
+                from j in cols0
+                select new { row = i, col = j }, pair =>
+                {
+                    int i = pair.row;
+                    int j = pair.col;
+                    T y;
+                    lock (read) y = prev[i, j];
+                    lock (write) next[i, j] = y;
+                });
+
+            Parallel.ForEach(
+                from i in rows0
+                from j in cols0
+                select new { row = i, col = j }, pair =>
+                {
+                    int i = pair.row;
+                    int j = pair.col;
+                    T y;
+                    lock (read) y = prev[i, j];
+                    lock (write) next[i, j] = y;
+                });
+
+            switch (transform)
+            {
+                case Transform.TransformByRows:
+                    Parallel.ForEach(Enumerable.Range(0, prev.GetLength(0)), i => { lock (write) next[i, col] = default(T); });
+                    Parallel.ForEach(Enumerable.Range(0, prev.GetLength(1)), j =>
                     {
                         T a;
-                        lock (read) a = prev[i, j];
+                        lock (read) a = prev[row, j];
                         var y = (T) Convert.ChangeType(Convert.ToDouble(a)/d, typeof (T));
-                        lock (write) next[i, j] = y;
-                    }
-                    else
+                        lock (write) next[row, j] = y;
+                    });
+                    break;
+                case Transform.TransformByColumns:
+                    Parallel.ForEach(Enumerable.Range(0, prev.GetLength(1)), j => { lock (write) next[row, j] = default(T); });
+                    Parallel.ForEach(Enumerable.Range(0, prev.GetLength(0)), i =>
                     {
-                        T a, b, c;
-                        lock (read) a = prev[i, j];
-                        lock (read) b = prev[i, col];
-                        lock (read) c = prev[row, j];
-                        var y =
-                            (T)
-                                Convert.ChangeType(
-                                    Convert.ToDouble(a) - (Convert.ToDouble(b)*Convert.ToDouble(c)/d),
-                                    typeof (T));
-                        lock (write) next[i, j] = y;
-                    }
-                });
+                        T a;
+                        lock (read) a = prev[i, col];
+                        var y = (T) Convert.ChangeType(Convert.ToDouble(a)/d, typeof (T));
+                        lock (write) next[i, col] = y;
+                    });
+                    break;
+            }
+
+            var one = (T) Convert.ChangeType(1, typeof (T));
+            lock (write) next[row, col] = one;
         }
 
         public static int CompareByIndexOfFirstNotZero(Vector<T> x, Vector<T> y)
