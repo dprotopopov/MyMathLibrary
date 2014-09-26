@@ -19,22 +19,22 @@ namespace MyMath
         private static readonly int HalfSize = Marshal.SizeOf(typeof (T)) << 2;
         private static readonly int Size = Marshal.SizeOf(typeof (T)) << 3;
 
-        private static readonly dynamic Uno = (T) Convert.ChangeType(1, typeof (T));
+        private static readonly dynamic Uno = (T) (dynamic) 1;
 
         private static readonly dynamic HalfMask = (T) ((Uno << (Marshal.SizeOf(typeof (T)) << 2)) - Uno);
         private static readonly dynamic SignMask = (T) (Uno << ((Marshal.SizeOf(typeof (T)) << 3) - 1));
 
         private static readonly BigInt<T> Zero = new BigInt<T>();
-        private static readonly BigInt<T> One = new BigInt<T>((T) Convert.ChangeType(1, typeof (T)));
-        private static readonly BigInt<T> Two = new BigInt<T>((T) Convert.ChangeType(2, typeof (T)));
-        private static readonly BigInt<T> Three = new BigInt<T>((T) Convert.ChangeType(3, typeof (T)));
-        private static readonly BigInt<T> Four = new BigInt<T>((T) Convert.ChangeType(4, typeof (T)));
-        private static readonly BigInt<T> Five = new BigInt<T>((T) Convert.ChangeType(5, typeof (T)));
-        private static readonly BigInt<T> Six = new BigInt<T>((T) Convert.ChangeType(6, typeof (T)));
-        private static readonly BigInt<T> Seven = new BigInt<T>((T) Convert.ChangeType(7, typeof (T)));
-        private static readonly BigInt<T> Eight = new BigInt<T>((T) Convert.ChangeType(8, typeof (T)));
-        private static readonly BigInt<T> Nine = new BigInt<T>((T) Convert.ChangeType(9, typeof (T)));
-        private static readonly BigInt<T> Ten = new BigInt<T>((T) Convert.ChangeType(10, typeof (T)));
+        private static readonly BigInt<T> One = new BigInt<T>((T) (dynamic) 1);
+        private static readonly BigInt<T> Two = new BigInt<T>((T) (dynamic) 2);
+        private static readonly BigInt<T> Three = new BigInt<T>((T) (dynamic) 3);
+        private static readonly BigInt<T> Four = new BigInt<T>((T) (dynamic) 4);
+        private static readonly BigInt<T> Five = new BigInt<T>((T) (dynamic) 5);
+        private static readonly BigInt<T> Six = new BigInt<T>((T) (dynamic) 6);
+        private static readonly BigInt<T> Seven = new BigInt<T>((T) (dynamic) 7);
+        private static readonly BigInt<T> Eight = new BigInt<T>((T) (dynamic) 8);
+        private static readonly BigInt<T> Nine = new BigInt<T>((T) (dynamic) 9);
+        private static readonly BigInt<T> Ten = new BigInt<T>((T) (dynamic) 10);
 
         private static readonly Dictionary<char, BigInt<T>> Digit = new Dictionary<char, BigInt<T>>
         {
@@ -77,7 +77,7 @@ namespace MyMath
                 count--)
                 stackListQueue.Pop();
             for (;
-                count > 1 && IsMinusOne(stackListQueue.ElementAt(count - 1)) &&
+                count > 1 && IsOne(~(dynamic)stackListQueue.ElementAt(count - 1)) &&
                 !IsZero(stackListQueue.ElementAt(count - 2) & SignMask);
                 count--)
                 stackListQueue.Pop();
@@ -96,10 +96,9 @@ namespace MyMath
         {
             get
             {
-                dynamic s = default(T);
                 return unchecked((IsZero(this) || IsZero(this.Last() & SignMask))
-                    ? s
-                    : unchecked(s - 1));
+                    ? default(T)
+                    : ~(dynamic)default(T));
             }
         }
 
@@ -153,8 +152,7 @@ namespace MyMath
                     dynamic x, y;
                     lock (read) x = a.ElementAt(i - 1);
                     lock (read) y = a.ElementAt(i);
-                    dynamic z = unchecked(((x >> n2) & mask) + (y << n1));
-                    lock (write) result[n0 + i] = z;
+                    lock (write) result[n0 + i] = unchecked(((x >> n2) & mask) + (y << n1));
                 });
                 result[n0 + a.Count] =
                     unchecked((((dynamic) a.Last() >> n2) & mask) + a.Sign << n1);
@@ -162,7 +160,7 @@ namespace MyMath
             else
                 Parallel.ForEach(Enumerable.Range(0, count), i =>
                 {
-                    dynamic x;
+                    T x;
                     lock (read) x = a.ElementAt(i);
                     lock (write) result[n0 + i] = x;
                 });
@@ -192,8 +190,7 @@ namespace MyMath
                     dynamic x, y;
                     lock (read) x = a.ElementAt(n0 + i);
                     lock (read) y = (n0 + i + 1 < count) ? a.ElementAt(n0 + i + 1) : a.Sign;
-                    dynamic z = unchecked(((x >> n1) & mask) + (y << n2));
-                    lock (write) result[i] = z;
+                    lock (write) result[i] = unchecked(((x >> n1) & mask) + (y << n2));
                 });
             }
             else
@@ -209,13 +206,14 @@ namespace MyMath
 
         public static BigInt<T> Square(BigInt<T> a)
         {
-            int count = a.Count;
+            BigInt<T> b = (IsNegative(a)) ? -a : a;
+            int count = b.Count;
             if (count == 0) return new BigInt<T>();
-            if (count == 1) return a*a;
+            if (count == 1) return b*b;
             int count1 = count >> 1;
             int count2 = count - count1;
-            var a1 = new BigInt<T>(a.GetRange(0, count1));
-            var a2 = new BigInt<T>(a.GetRange(count1, count2));
+            var a1 = new BigInt<T>(b.GetRange(0, count1));
+            var a2 = new BigInt<T>(b.GetRange(count1, count2));
             BigInt<T> r = Square(a1) + (a1*a2 << (count1*Size + 1)) + (Square(a2) << (count1*Size << 1));
             return r;
         }
@@ -315,7 +313,7 @@ namespace MyMath
                     int i = pair.Key;
                     IEnumerable<T> items = pair.Value;
                     if (i >= count + 1) return;
-                    dynamic x = default(T);
+                    T x = default(T);
                     dynamic inc = default(T);
                     foreach (dynamic y in items)
                         try
@@ -330,7 +328,7 @@ namespace MyMath
                     if (!IsZero(x))
                         lock (write)
                         {
-                            dynamic z = default(T);
+                            T z = default(T);
                             dynamic y = result[i];
                             try
                             {
@@ -370,7 +368,8 @@ namespace MyMath
             var list = new StackListQueue<KeyValuePair<int, T>>();
             Parallel.ForEach(Enumerable.Range(0, count), i =>
             {
-                dynamic x, y, z = default(T);
+                T z = default(T);
+                dynamic x, y;
                 lock (read) x = (i < a.Count) ? a.ElementAt(i) : a.Sign;
                 lock (read) y = (i < b.Count) ? b.ElementAt(i) : b.Sign;
                 try
@@ -398,7 +397,7 @@ namespace MyMath
                     if (i >= count) return;
                     lock (write)
                     {
-                        dynamic z = default(T);
+                        T z = default(T);
                         dynamic x = result[i];
                         try
                         {
@@ -462,8 +461,7 @@ namespace MyMath
                 dynamic x, y;
                 lock (read) x = (i < a.Count) ? a.ElementAt(i) : a.Sign;
                 lock (read) y = (i < b.Count) ? b.ElementAt(i) : b.Sign;
-                dynamic z = unchecked(x ^ y);
-                lock (write) result[i] = z;
+                lock (write) result[i] = unchecked(x ^ y);
             });
             return new BigInt<T>(result);
         }
@@ -482,8 +480,7 @@ namespace MyMath
                 dynamic x, y;
                 lock (read) x = (i < a.Count) ? a.ElementAt(i) : a.Sign;
                 lock (read) y = (i < b.Count) ? b.ElementAt(i) : b.Sign;
-                dynamic z = unchecked(x | y);
-                lock (write) result[i] = z;
+                lock (write) result[i] = unchecked(x | y);
             });
             var r = new BigInt<T>(result);
             return r;
@@ -503,12 +500,7 @@ namespace MyMath
 
         public static bool IsNegative(BigInt<T> a)
         {
-            return IsMinusOne(a.Sign);
-        }
-
-        private static bool IsMinusOne(BigInt<T> a)
-        {
-            return a.Count == 1 && IsMinusOne(a.First());
+            return IsZero(~(a.Sign));
         }
 
         private static bool IsOne(BigInt<T> a)
@@ -520,19 +512,14 @@ namespace MyMath
 
         #region
 
-        public static bool IsZero(dynamic a)
+        public static bool IsZero(T a)
         {
-            return unchecked(a == default(T));
+            return unchecked((dynamic)a == default(T));
         }
 
-        private static bool IsOne(dynamic a)
+        private static bool IsOne(T a)
         {
-            return IsZero(unchecked(a - 1));
-        }
-
-        private static bool IsMinusOne(dynamic a)
-        {
-            return IsZero(unchecked(a + 1));
+            return unchecked((dynamic)a == (T)(dynamic)1);
         }
 
         #endregion
@@ -543,7 +530,7 @@ namespace MyMath
         {
             if (IsZero(b)) throw new DivideByZeroException();
             if (IsOne(b)) return new BigInt<T>(a);
-            if (IsMinusOne(b)) return -a;
+            if (IsOne(~b)) return -a;
             if (Boolean.Or(IsNegative(a), IsNegative(b)))
             {
                 BigInt<T> c = (IsPositive(a)) ? a : -a;
@@ -577,7 +564,7 @@ namespace MyMath
         {
             if (IsZero(b)) throw new DivideByZeroException();
             if (IsOne(b)) return new BigInt<T>(a);
-            if (IsMinusOne(b)) return -a;
+            if (IsOne(~b)) return -a;
             if (Boolean.Or(IsNegative(a), IsNegative(b)))
             {
                 BigInt<T> c = (IsPositive(a)) ? a : -a;
@@ -608,7 +595,7 @@ namespace MyMath
         {
             if (IsZero(b)) throw new DivideByZeroException();
             if (IsOne(b)) return new BigInt<T>(a);
-            if (IsMinusOne(b)) return -a;
+            if (IsOne(~b)) return -a;
             if (Boolean.Or(IsNegative(a), IsNegative(b)))
             {
                 BigInt<T> c = (IsPositive(a)) ? a : -a;
@@ -715,18 +702,15 @@ namespace MyMath
             a.Add(a.Sign);
             int count = a.Count;
             for (int i = 0; i < count; i++)
-            {
-                dynamic x = unchecked((dynamic) a[i] + Uno);
-                a[i] = x;
-                if (!IsZero(x)) break;
-            }
+                if (!IsZero(a[i] = unchecked((dynamic) a[i] + Uno)))
+                    break;
             for (;
                 count > 1 && IsZero(a.ElementAt(count - 1)) &&
                 IsZero((dynamic) a.ElementAt(count - 2) & SignMask);
                 count--)
                 a.Pop();
             for (;
-                count > 1 && IsMinusOne(a.ElementAt(count - 1)) &&
+                count > 1 && IsOne(~(dynamic)a.ElementAt(count - 1)) &&
                 !IsZero((dynamic) a.ElementAt(count - 2) & SignMask);
                 count--)
                 a.Pop();
@@ -739,18 +723,15 @@ namespace MyMath
             a.Add(a.Sign);
             int count = a.Count;
             for (int i = 0; i < count; i++)
-            {
-                dynamic x = unchecked((dynamic) a[i] - Uno);
-                a[i] = x;
-                if (!IsMinusOne(x)) break;
-            }
+                if (!IsOne(~(dynamic)unchecked(a[i] = (dynamic)a[i] - Uno)))
+                    break;
             for (;
                 count > 1 && IsZero(a.ElementAt(count - 1)) &&
                 IsZero(a.ElementAt(count - 2) & SignMask);
                 count--)
                 a.Pop();
             for (;
-                count > 1 && IsMinusOne(a.ElementAt(count - 1)) &&
+                count > 1 && IsOne(~(dynamic)a.ElementAt(count - 1)) &&
                 !IsZero(a.ElementAt(count - 2) & SignMask);
                 count--)
                 a.Pop();

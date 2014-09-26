@@ -2,19 +2,18 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using MyLibrary.Collections;
 
 namespace MyMath
 {
-    public class Vector<T> : StackListQueue<T>
+    public class Vector<T> : List<T>
     {
         public Vector()
         {
         }
 
         public Vector(T value)
-            : base(value)
         {
+            Add(value);
         }
 
         public Vector(IEnumerable<T> vector)
@@ -25,16 +24,12 @@ namespace MyMath
         public static Vector<T> operator +(Vector<T> a, Vector<T> b)
         {
             int count = Math.Max(a.Count, b.Count);
-            var read = new object();
-            var write = new object();
             var result = new T[count];
             Parallel.ForEach(Enumerable.Range(0, count), i =>
             {
-                dynamic x, y;
-                lock (read) x = (i < a.Count) ? a.ElementAt(i) : default(T);
-                lock (read) y = (i < b.Count) ? b.ElementAt(i) : default(T);
-                dynamic z = x + y;
-                lock (write) result[i] = z;
+                dynamic x = (i < a.Count) ? a.ElementAt(i) : default(T);
+                dynamic y = (i < b.Count) ? b.ElementAt(i) : default(T);
+                result[i] = x + y;
             });
             return new Vector<T>(result);
         }
@@ -42,16 +37,12 @@ namespace MyMath
         public static Vector<T> operator -(Vector<T> a, Vector<T> b)
         {
             int count = Math.Max(a.Count, b.Count);
-            var read = new object();
-            var write = new object();
             var result = new T[count];
             Parallel.ForEach(Enumerable.Range(0, count), i =>
             {
-                dynamic x, y;
-                lock (read) x = (i < a.Count) ? a.ElementAt(i) : default(T);
-                lock (read) y = (i < b.Count) ? b.ElementAt(i) : default(T);
-                dynamic z = x - y;
-                lock (write) result[i] = z;
+                dynamic x = (i < a.Count) ? a.ElementAt(i) : default(T);
+                dynamic y = (i < b.Count) ? b.ElementAt(i) : default(T);
+                result[i] = x - y;
             });
             return new Vector<T>(result);
         }
@@ -68,38 +59,31 @@ namespace MyMath
 
         public static bool IsZero(T arg)
         {
-            double x = Math.Abs(Convert.ToDouble(arg));
-            return x <= 0.0*x;
+            return (dynamic)arg == default(T);
         }
 
         public static bool NotZero(T arg)
         {
-            return Math.Abs(Convert.ToDouble(arg)) > 0.0;
+            return (dynamic)arg != default(T);
         }
 
         public static T Scalar(Vector<T> a, Vector<T> b)
         {
             int count = Math.Min(a.Count, b.Count);
-            var read = new object();
-            var write = new object();
-            var buffer = new double[count];
+            var buffer = new T[count];
             Parallel.ForEach(Enumerable.Range(0, count), i =>
             {
-                dynamic x, y;
-                lock (read) x = (i < a.Count) ? a.ElementAt(i) : default(T);
-                lock (read) y = (i < b.Count) ? b.ElementAt(i) : default(T);
-                double z = Convert.ToDouble(x)*Convert.ToDouble(y);
-                lock (write) buffer[i] = z;
+                dynamic x = (i < a.Count) ? a.ElementAt(i) : default(T);
+                dynamic y = (i < b.Count) ? b.ElementAt(i) : default(T);
+                buffer[i] = x * y;
             });
-            return (T) (dynamic) buffer.Aggregate(0.0, (current, y) => current + y);
+            return buffer.Aggregate(default(T), (current, y) => current + (dynamic) y);
         }
 
-        public void Append(IEnumerable<T> value)
+        public void Add(IEnumerable<T> value)
         {
-            foreach (T x in value)
-            {
-                Append(x);
-            }
+            if (!value.Any()) return;
+            base.AddRange(value);
         }
     }
 }

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Security.Policy;
 using System.Threading.Tasks;
 using MyLibrary.Collections;
 
@@ -42,6 +41,11 @@ namespace MyMath
                 Add(new Vector<T>(Enumerable.Repeat(default(T), cols)));
         }
 
+        public Matrix(IEnumerable<Vector<T>> array)
+        {
+            AddRange(array);
+        }
+
         public Matrix(IEnumerable<IEnumerable<T>> array)
         {
             foreach (var vector in array)
@@ -52,6 +56,9 @@ namespace MyMath
         {
         }
 
+        public Matrix(T x) : base(new Vector<T>(x))
+        {            
+        }
         public int Rows
         {
             get { return Count; }
@@ -64,14 +71,12 @@ namespace MyMath
 
         public void AddColumn()
         {
-            foreach (var row in this) row.Append(default(T));
+            foreach (var row in this) row.Add(default(T));
         }
 
         public Matrix<T> SubMatrix(IEnumerable<int> rows, IEnumerable<int> columns)
         {
             var subMatrix = new Matrix<T>(rows.Count(), columns.Count());
-            var read = new object();
-            var write = new object();
 
             Parallel.ForEach(
                 from i in Enumerable.Range(0, rows.Count())
@@ -80,9 +85,7 @@ namespace MyMath
                 {
                     int i = pair.row;
                     int j = pair.col;
-                    T x;
-                    lock (read) x = this[rows.ElementAt(i)][columns.ElementAt(j)];
-                    lock (write) subMatrix[i][j] = x;
+                    subMatrix[i][j] = this[rows.ElementAt(i)][columns.ElementAt(j)];
                 });
 
             return subMatrix;
@@ -90,36 +93,12 @@ namespace MyMath
 
         public static Matrix<T> operator -(Matrix<T> a, Matrix<T> b)
         {
-            Debug.Assert(a.Rows == b.Rows);
-            Debug.Assert(a.Columns == b.Columns);
-            int rows = Math.Max(a.Rows, b.Rows);
-            int columns = Math.Max(a.Columns, b.Columns);
-            var result = new Matrix<T>(rows, columns);
-            for (int i = 0; i < rows; i++)
-                for (int j = 0; j < columns; j++)
-                {
-                    T x = a[i][j];
-                    T y = b[i][j];
-                    result[i][j] = (T) Convert.ChangeType(Convert.ToDouble(x) - Convert.ToDouble(y), typeof (T));
-                }
-            return result;
+            return new Matrix<T>(a as Vector<Vector<T>> - b as Vector<Vector<T>>);
         }
 
         public static Matrix<T> operator +(Matrix<T> a, Matrix<T> b)
         {
-            Debug.Assert(a.Rows == b.Rows);
-            Debug.Assert(a.Columns == b.Columns);
-            int rows = Math.Max(a.Rows, b.Rows);
-            int columns = Math.Max(a.Columns, b.Columns);
-            var result = new Matrix<T>(rows, columns);
-            for (int i = 0; i < rows; i++)
-                for (int j = 0; j < columns; j++)
-                {
-                    T x = a[i][j];
-                    T y = b[i][j];
-                    result[i][j] = (T) Convert.ChangeType(Convert.ToDouble(x) + Convert.ToDouble(y), typeof (T));
-                }
-            return result;
+            return new Matrix<T>(a as Vector<Vector<T>> + b as Vector<Vector<T>>);
         }
 
         public static Matrix<T> operator *(Matrix<T> a, Matrix<T> b)
@@ -129,21 +108,22 @@ namespace MyMath
             int columns = b.Columns;
             int commons = Math.Max(a.Columns, b.Rows);
             var result = new Matrix<T>(rows, columns);
-            for (int i = 0; i < rows; i++)
-                for (int j = 0; j < columns; j++)
+            Parallel.ForEach(
+                from i in Enumerable.Range(0, rows)
+                from j in Enumerable.Range(0, columns)
+                select new {row = i, col = j}, pair =>
                 {
+                    int i = pair.row;
+                    int j = pair.col;
                     T t = default(T);
                     for (int k = 0; k < commons; k++)
                     {
-                        T x = a[i][k];
-                        T y = b[k][j];
-                        t =
-                            (T)
-                                Convert.ChangeType(Convert.ToDouble(t) + (Convert.ToDouble(x)*Convert.ToDouble(y)),
-                                    typeof (T));
+                        dynamic x = a[i][k];
+                        dynamic y = b[k][j];
+                        t = t + x*y;
                     }
                     result[i][j] = t;
-                }
+                });
             return result;
         }
 
@@ -154,13 +134,12 @@ namespace MyMath
 
         public static bool IsZero(T arg)
         {
-            double x = Math.Abs(Convert.ToDouble(arg));
-            return x <= 0.0*x;
+            return (dynamic) arg == default(T);
         }
 
         public void AddRow()
         {
-            Append(new Vector<T>(Enumerable.Repeat(default(T), Columns)));
+            Add(new Vector<T>(Enumerable.Repeat(default(T), Columns)));
         }
 
         public void AppendColumns(IEnumerable<IEnumerable<T>> b)
@@ -170,17 +149,13 @@ namespace MyMath
 
             int index = 0;
             foreach (var row in this)
-            {
-                row.Append(b.ElementAt(index++));
-            }
+                row.Add(b.ElementAt(index++));
         }
 
         public void AppendRows(IEnumerable<IEnumerable<T>> b)
         {
             foreach (var row in b)
-            {
-                Append(new Vector<T>(row));
-            }
+                Add(new Vector<T>(row));
         }
 
         /// <summary>
@@ -200,53 +175,20 @@ namespace MyMath
             int row = Math.Min(Rows, last);
             int col = Math.Min(Columns, last);
 
-            var prev = new T[Rows, Columns];
-            var next = new T[Rows, Columns];
-
-            var read = new object();
-            var write = new object();
-
-            Parallel.ForEach(
-                from i in Enumerable.Range(0, Rows)
-                from j in Enumerable.Range(0, Columns)
-                select new {row = i, col = j}, pair =>
-                {
-                    int i = pair.row;
-                    int j = pair.col;
-                    T x;
-                    lock (read) x = this[i][j];
-                    lock (write) prev[i, j] = x;
-                });
-
             for (int i = first;
-                i < Math.Min(Math.Min(Rows, Columns), last) && FindNotZero(search, prev, i, ref row, ref col);
+                i < Math.Min(Math.Min(Rows, Columns), last) && FindNotZero(search, i, ref row, ref col);
                 i++)
             {
-                GaussJordanStep(transform, prev, next, row, col);
-                T[,] t = prev;
-                prev = next;
-                next = t;
+                GaussJordanStep(transform, row, col);
                 row = Math.Min(Rows, last);
                 col = Math.Min(Columns, last);
             }
-
-            Parallel.ForEach(
-                from i in Enumerable.Range(0, Rows)
-                from j in Enumerable.Range(0, Columns)
-                select new {row = i, col = j}, pair =>
-                {
-                    int i = pair.row;
-                    int j = pair.col;
-                    T x;
-                    lock (read) x = prev[i, j];
-                    lock (write) this[i][j] = x;
-                });
         }
 
-        private static bool FindNotZero(Search search, T[,] items, int i, ref int row, ref int col)
+        private bool FindNotZero(Search search, int i, ref int row, ref int col)
         {
-            Debug.Assert(row <= items.GetLength(0));
-            Debug.Assert(col <= items.GetLength(1));
+            Debug.Assert(row <= Rows);
+            Debug.Assert(col <= Columns);
             switch (search)
             {
                 case Search.SearchByRows:
@@ -254,10 +196,7 @@ namespace MyMath
                     {
                         row = i + (j/n);
                         col = (j%n);
-                        Debug.Assert(row <= items.GetLength(0));
-                        Debug.Assert(col <= items.GetLength(1));
-                        T x = items[row, col];
-                        if (Math.Abs(Convert.ToDouble(x)) > 0.0) return true;
+                        if (!IsZero(this[row][col])) return true;
                     }
                     return false;
                 case Search.SearchByColumns:
@@ -265,40 +204,22 @@ namespace MyMath
                     {
                         col = i + (j/n);
                         row = (j%n);
-                        Debug.Assert(row <= items.GetLength(0));
-                        Debug.Assert(col <= items.GetLength(1));
-                        T x = items[row, col];
-                        if (Math.Abs(Convert.ToDouble(x)) > 0.0) return true;
+                        if (!IsZero(this[row][col])) return true;
                     }
                     return false;
             }
             throw new NotImplementedException();
         }
 
-        public static void GaussJordanStep(Transform transform, T[,] prev, T[,] next, int row, int col)
+        public void GaussJordanStep(Transform transform, int row, int col)
         {
-            Debug.Assert(prev.GetLength(0) == next.GetLength(0));
-            Debug.Assert(prev.GetLength(1) == next.GetLength(1));
+            dynamic d = this[row][col];
 
-            var read = new object();
-            var write = new object();
-
-            T x;
-            lock (read) x = prev[row, col];
-            double d = Convert.ToDouble(x);
-            Debug.Assert(Math.Abs(d) > 0.0);
-
-            var rows0 = new StackListQueue<int>();
-            var cols0 = new StackListQueue<int>();
             var rows = new StackListQueue<int>();
             var cols = new StackListQueue<int>();
 
-            for (int i = 0; i < prev.GetLength(0); i++)
-                if (IsZero(prev[i, col])) rows0.Add(i);
-                else rows.Add(i);
-            for (int j = 0; j < prev.GetLength(1); j++)
-                if (IsZero(prev[row, j])) cols0.Add(j);
-                else cols.Add(j);
+            for (int i = 0; i < Rows; i++) if (!IsZero(this[i][col])) rows.Add(i);
+            for (int j = 0; j < Columns; j++) if (!IsZero(this[row][j])) cols.Add(j);
 
             rows.Remove(row);
             cols.Remove(col);
@@ -310,80 +231,33 @@ namespace MyMath
                 {
                     int i = pair.row;
                     int j = pair.col;
-                    T a, b, c;
-                    lock (read) a = prev[i, j];
-                    lock (read) b = prev[i, col];
-                    lock (read) c = prev[row, j];
-                    var y =
-                        (T)
-                            Convert.ChangeType(
-                                Convert.ToDouble(a) - (Convert.ToDouble(b)*Convert.ToDouble(c)/d),
-                                typeof (T));
-                    lock (write) next[i, j] = y;
-                });
-
-            Parallel.ForEach(
-                from i in rows0
-                from j in cols
-                select new {row = i, col = j}, pair =>
-                {
-                    int i = pair.row;
-                    int j = pair.col;
-                    T y;
-                    lock (read) y = prev[i, j];
-                    lock (write) next[i, j] = y;
-                });
-
-            Parallel.ForEach(
-                from i in rows
-                from j in cols0
-                select new { row = i, col = j }, pair =>
-                {
-                    int i = pair.row;
-                    int j = pair.col;
-                    T y;
-                    lock (read) y = prev[i, j];
-                    lock (write) next[i, j] = y;
-                });
-
-            Parallel.ForEach(
-                from i in rows0
-                from j in cols0
-                select new { row = i, col = j }, pair =>
-                {
-                    int i = pair.row;
-                    int j = pair.col;
-                    T y;
-                    lock (read) y = prev[i, j];
-                    lock (write) next[i, j] = y;
+                    dynamic a = this[i][j];
+                    dynamic b = this[i][col];
+                    dynamic c = this[row][j];
+                    this[i][j] = a - b*c/d;
                 });
 
             switch (transform)
             {
                 case Transform.TransformByRows:
-                    Parallel.ForEach(Enumerable.Range(0, prev.GetLength(0)), i => { lock (write) next[i, col] = default(T); });
-                    Parallel.ForEach(Enumerable.Range(0, prev.GetLength(1)), j =>
+                    Parallel.ForEach(rows, i => { this[i][col] = default(T); });
+                    Parallel.ForEach(cols, j =>
                     {
-                        T a;
-                        lock (read) a = prev[row, j];
-                        var y = (T) Convert.ChangeType(Convert.ToDouble(a)/d, typeof (T));
-                        lock (write) next[row, j] = y;
+                        dynamic a = this[row][j];
+                        this[row][j] = a/d;
                     });
                     break;
                 case Transform.TransformByColumns:
-                    Parallel.ForEach(Enumerable.Range(0, prev.GetLength(1)), j => { lock (write) next[row, j] = default(T); });
-                    Parallel.ForEach(Enumerable.Range(0, prev.GetLength(0)), i =>
+                    Parallel.ForEach(cols, j => { this[row][j] = default(T); });
+                    Parallel.ForEach(rows, i =>
                     {
-                        T a;
-                        lock (read) a = prev[i, col];
-                        var y = (T) Convert.ChangeType(Convert.ToDouble(a)/d, typeof (T));
-                        lock (write) next[i, col] = y;
+                        dynamic a = this[i][col];
+                        this[i][col] = a/d;
                     });
                     break;
             }
 
-            var one = (T) Convert.ChangeType(1, typeof (T));
-            lock (write) next[row, col] = one;
+            this[row][col] = (T) (dynamic) 1;
         }
 
         public static int CompareByIndexOfFirstNotZero(Vector<T> x, Vector<T> y)
@@ -409,7 +283,7 @@ namespace MyMath
             int parity = this.Sum(row => row.IndexOf(row.First(Vector<T>.NotZero)));
             T s =
                 this.Select(row => row.First(Vector<T>.NotZero))
-                    .Aggregate((x, y) => ((dynamic) x*(dynamic) y));
+                    .Aggregate((x, y) => ((T) ((dynamic) x*(dynamic) y)));
             return ((parity & 1) == 0) ? s : (- (dynamic) s);
         }
     }

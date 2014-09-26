@@ -75,6 +75,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BigInt.cs" />
+    <Compile Include="Double\DoubleMatrix.cs" />
+    <Compile Include="Double\DoubleVector.cs" />
     <Compile Include="GF2\BooleanMatrix.cs" />
     <Compile Include="GF2\BooleanVector.cs" />
     <Compile Include="GF2\BooleanVectorIndexOfTrueComparer.cs" />

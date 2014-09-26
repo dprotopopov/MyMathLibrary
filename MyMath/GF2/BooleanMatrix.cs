@@ -9,6 +9,18 @@ namespace MyMath.GF2
 {
     public class BooleanMatrix : Vector<BooleanVector>
     {
+        public enum Search
+        {
+            SearchByRows = 1,
+            SearchByColumns = -1,
+        };
+
+        public enum Transform
+        {
+            TransformByRows = 1,
+            TransformByColumns = -1,
+        };
+
         public BooleanMatrix(IEnumerable<IEnumerable<bool>> list)
         {
             foreach (var item in list)
@@ -23,7 +35,7 @@ namespace MyMath.GF2
                     true,
                     Enumerable.Repeat(false, indexes.Count() - item - 1)
                 });
-            for (int i = 0; i < indexes.Count(); i++) this[i][i] = true;
+            Parallel.ForEach(Enumerable.Range(0, indexes.Count()), i => { this[i][i] = true; });
             Debug.Assert(Count == Length);
         }
 
@@ -99,115 +111,82 @@ namespace MyMath.GF2
         ///     НЭ = СЭ - (А*В)/РЭ
         ///     РЭ - разрешающий элемент, А и В - элементы матрицы, образующие прямоугольник с элементами СЭ и РЭ.
         /// </summary>
-        public void GaussJordan()
+        public void GaussJordan(Search search = Search.SearchByRows,
+            Transform transform = Transform.TransformByRows,
+            int first = 0,
+            int last = Int32.MaxValue)
         {
-            int row = Rows;
-            int col = Columns;
+            int row = Math.Min(Rows, last);
+            int col = Math.Min(Columns, last);
 
-            Debug.Assert(this.All(r => r.Count == col));
-
-            var prev = new bool[row, col];
-            var next = new bool[row, col];
-
-            var read = new object();
-            var write = new object();
-
-            Parallel.ForEach(
-                from i in Enumerable.Range(0, Rows)
-                from j in Enumerable.Range(0, Columns)
-                select new {row = i, col = j}, pair =>
-                {
-                    int i = pair.row;
-                    int j = pair.col;
-                    bool x;
-                    lock (read) x = this[i][j];
-                    lock (write) prev[i, j] = x;
-                });
-
-            for (int i = 0; i < Math.Min(Rows, Columns) && FindNotZero(prev, i, ref row, ref col); i++)
+            for (int i = first;
+                i < Math.Min(Math.Min(Rows, Columns), last) && FindNotZero(search, i, ref row, ref col);
+                i++)
             {
-                GaussJordanStep(prev, next, row, col);
-                bool[,] t = prev;
-                prev = next;
-                next = t;
+                GaussJordanStep(transform, row, col);
                 row = Rows;
                 col = Columns;
             }
-
-            Parallel.ForEach(
-                from i in Enumerable.Range(0, Rows)
-                from j in Enumerable.Range(0, Columns)
-                select new {row = i, col = j}, pair =>
-                {
-                    int i = pair.row;
-                    int j = pair.col;
-                    bool x;
-                    lock (read) x = prev[i, j];
-                    lock (write) this[i][j] = x;
-                });
         }
 
-        private static bool FindNotZero(bool[,] items, int i, ref int row, ref int col)
+        private bool FindNotZero(Search search, int i, ref int row, ref int col)
         {
-            Debug.Assert(row <= items.GetLength(0));
-            Debug.Assert(col <= items.GetLength(1));
-            int total = (row - i)*col;
-            int n = col;
-            int j;
-            for (j = 0; j < total; j++)
+            Debug.Assert(row <= Rows);
+            Debug.Assert(col <= Columns);
+            switch (search)
             {
-                row = i + (j/n);
-                col = (j%n);
-                Debug.Assert(row <= items.GetLength(0));
-                Debug.Assert(col <= items.GetLength(1));
-                if (items[row, col]) break;
+                case Search.SearchByRows:
+                    for (int j = 0, total = (row - i) * col, n = col; j < total; j++)
+                    {
+                        row = i + (j / n);
+                        col = (j % n);
+                        if (this[row][col]) return true;
+                    }
+                    return false;
+                case Search.SearchByColumns:
+                    for (int j = 0, total = row * (col - i), n = row; j < total; j++)
+                    {
+                        col = i + (j / n);
+                        row = (j % n);
+                        if (this[row][col]) return true;
+                    }
+                    return false;
             }
-            return j < total;
+            throw new NotImplementedException();
         }
 
-        public static void GaussJordanStep(bool[,] prev, bool[,] next, int row, int col)
+        public void GaussJordanStep(Transform transform, int row, int col)
         {
-            Debug.Assert(prev.GetLength(0) == next.GetLength(0));
-            Debug.Assert(prev.GetLength(1) == next.GetLength(1));
+            var rows = new StackListQueue<int>();
+            var cols = new StackListQueue<int>();
 
-            int rows = prev.GetLength(0);
-            int cols = prev.GetLength(1);
+            for (int i = 0; i < Rows; i++) if (this[i][col]) rows.Add(i);
+            for (int j = 0; j < Columns; j++) if (this[row][j]) cols.Add(j);
 
-            var read = new object();
-            var write = new object();
+            rows.Remove(row);
+            cols.Remove(col);
 
-            bool d;
-            lock (read) d = prev[row, col];
-            Debug.Assert(d);
+            Debug.Assert(this[row][col]);
 
             Parallel.ForEach(
-                from i in Enumerable.Range(0, rows)
-                from j in Enumerable.Range(0, cols)
-                select new {row = i, col = j}, pair =>
+                from i in rows
+                from j in cols
+                select new { row = i, col = j }, pair =>
                 {
                     int i = pair.row;
                     int j = pair.col;
-                    if (i == row && j == col)
-                        lock (write) next[i, j] = true;
-                    else if (j == col)
-                        lock (write) next[i, j] = false;
-                    else if (i == row)
-                    {
-                        bool a;
-                        lock (read) a = prev[i, j];
-                        bool y = a && d;
-                        lock (write) next[i, j] = y;
-                    }
-                    else
-                    {
-                        bool a, b, c;
-                        lock (read) a = prev[i, j];
-                        lock (read) b = prev[i, col];
-                        lock (read) c = prev[row, j];
-                        bool y = a ^ (b && c && d);
-                        lock (write) next[i, j] = y;
-                    }
+                    this[i][j] = !this[i][j];
                 });
+
+            switch (transform)
+            {
+                case Transform.TransformByRows:
+                    Parallel.ForEach(rows, i => { this[i][col] = false; });
+                    break;
+                case Transform.TransformByColumns:
+                    Parallel.ForEach(cols, j => { this[row][j] = false; });
+                    break;
+            }
         }
 
         public static int CompareByIndexOfFirstNotZero(BooleanVector x, BooleanVector y)
